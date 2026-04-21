@@ -32,5 +32,3 @@ Thumbs.db
 # Rust
 program/target/
 
-# Supabase
-supabase/.temp/

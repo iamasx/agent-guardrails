@@ -243,7 +243,7 @@ The dashboard shows normal activity streaming in via SSE, then the attack: FLAG 
 
 ## License
 
-MIT
+Apache 2.0
 
 ---
 
