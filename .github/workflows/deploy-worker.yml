@@ -1,11 +1,6 @@
 name: Deploy — Worker (Fly.io)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "worker/**"
-      - "sdk/**"
   workflow_dispatch:
 
 concurrency:
@@ -15,14 +10,15 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: secrets.FLY_API_TOKEN != ''
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Fly CLI
+        if: ${{ secrets.FLY_API_TOKEN != '' }}
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy to Fly.io
+        if: ${{ secrets.FLY_API_TOKEN != '' }}
         working-directory: worker
         run: flyctl deploy --remote-only
         env:
