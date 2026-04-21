@@ -1,25 +1,40 @@
 name: Deploy — Worker (Fly.io)
 
 on:
-  workflow_dispatch:
-
-concurrency:
-  group: deploy-worker
-  cancel-in-progress: false
+  push:
+    branches: [main]
 
 jobs:
-  deploy:
+  placeholder:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Deploy not configured yet
+        run: echo "Worker deploy will be enabled when Fly.io token is configured"
 
-      - name: Setup Fly CLI
-        if: ${{ secrets.FLY_API_TOKEN != '' }}
-        uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - name: Deploy to Fly.io
-        if: ${{ secrets.FLY_API_TOKEN != '' }}
-        working-directory: worker
-        run: flyctl deploy --remote-only
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+# TODO: uncomment when ready to deploy
+# on:
+#   push:
+#     branches: [main]
+#     paths:
+#       - "worker/**"
+#       - "sdk/**"
+#   workflow_dispatch:
+#
+# concurrency:
+#   group: deploy-worker
+#   cancel-in-progress: false
+#
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#
+#       - name: Setup Fly CLI
+#         uses: superfly/flyctl-actions/setup-flyctl@master
+#
+#       - name: Deploy to Fly.io
+#         working-directory: worker
+#         run: flyctl deploy --remote-only
+#         env:
+#           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
