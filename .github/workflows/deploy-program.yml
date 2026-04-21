@@ -10,7 +10,7 @@ on:
 jobs:
   deploy-devnet:
     runs-on: ubuntu-latest
-    if: github.event.inputs.confirm == 'deploy'
+    if: github.event.inputs.confirm == 'deploy' && secrets.SOLANA_DEPLOY_KEYPAIR != ''
     steps:
       - uses: actions/checkout@v4
 
