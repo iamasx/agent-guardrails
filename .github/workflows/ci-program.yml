@@ -45,13 +45,20 @@ jobs:
           key: cargo-${{ hashFiles('program/programs/guardrails/Cargo.toml', 'program/Cargo.toml') }}
           restore-keys: cargo-
 
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        working-directory: program
+        run: pnpm install
+
       - name: Build
         working-directory: program
         run: anchor build
 
       - name: Test
         working-directory: program
-        run: cargo test || true  # TODO: remove || true once tests are implemented
+        run: pnpm test || true  # TODO: remove || true once tests are implemented
 
       - name: Verify IDL is current
         run: |

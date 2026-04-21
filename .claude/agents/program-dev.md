@@ -46,7 +46,7 @@ The program lives in `program/programs/guardrails/src/`. You build the on-chain 
 
 ## Testing
 
-- Tests are Rust unit tests using LiteSVM in-process validator (`cargo test`)
+- Tests are TypeScript using `litesvm` npm package (`pnpm test`)
 - No external validator needed — LiteSVM runs entirely in-process, much faster
 - Test every rejection path in `guarded_execute`
 - Test monitor authorization in `pause_agent`

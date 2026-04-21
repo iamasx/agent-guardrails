@@ -2,7 +2,7 @@ Build and test the Anchor program with diagnostics on failure.
 
 Steps:
 1. Run `cd program && anchor build`. If build fails, read the error output and the relevant source file to diagnose.
-2. Run `cd program && cargo test`. This uses LiteSVM in-process — no external validator needed.
+2. Run `cd program && pnpm test`. This uses LiteSVM in-process — no external validator needed.
 3. If tests fail:
    - Read `program/tests/guardrails.ts` to understand what was being tested.
    - Read the relevant instruction source file in `program/programs/guardrails/src/instructions/`.

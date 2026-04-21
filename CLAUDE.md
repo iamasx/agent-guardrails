@@ -39,7 +39,7 @@ Configure hooks after clone: `git config core.hooksPath .githooks`
 ```bash
 # Program
 cd program && anchor build            # Build Anchor program
-cd program && anchor build && cargo test  # Build + run unit tests (LiteSVM, in-process)
+cd program && pnpm test                  # Run TS tests (LiteSVM in-process, no external validator)
 
 # SDK sync
 bash scripts/sync-sdk.sh              # Sync after any sdk/ or program change
