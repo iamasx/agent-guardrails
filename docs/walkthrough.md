@@ -17,11 +17,112 @@ A complete trace of how Agent Guardrails Protocol works, from policy creation to
 
 ---
 
-## Phase 1: Policy Creation
+## Phase 0: Authentication (SIWS)
 
-Alice opens the dashboard at `https://guardrails.vercel.app`, connects her Phantom wallet, and creates a policy for Alpha Scanner.
+Before Alice can do anything, she signs in with her Solana wallet.
 
-### On the dashboard (`/agents/new`)
+### Step 1: Connect wallet
+
+Alice opens `https://guardrails.vercel.app` and clicks "Connect Wallet". The Solana wallet adapter prompts her to select Phantom. Her wallet connects — the dashboard now knows her pubkey `7xKX...AsU` but hasn't verified ownership yet.
+
+### Step 2: Sign-In With Solana (SIWS)
+
+Alice clicks "Sign In". The dashboard starts the SIWS flow:
+
+```
+Dashboard                          Server                            Database
+   │                                 │                                  │
+   ├─ POST /api/auth/siws/nonce ──→  │                                  │
+   │                                 ├─ Generate random nonce ──────→   │
+   │                                 │  INSERT auth_sessions            │
+   │                                 │  {walletPubkey: "7xKX...",       │
+   │                                 │   nonce: "a8f3...",              │
+   │                                 │   expiresAt: now + 10min}        │
+   │  ←── { nonce, message } ───────┤                                  │
+   │                                 │                                  │
+   │  Phantom popup:                 │                                  │
+   │  "Sign this message to          │                                  │
+   │   verify wallet ownership"      │                                  │
+   │  Alice clicks "Sign"            │                                  │
+   │                                 │                                  │
+   ├─ POST /api/auth/siws/verify ──→ │                                  │
+   │  { pubkey, signature, message } │                                  │
+   │                                 ├─ tweetnacl.sign.detached.verify()│
+   │                                 │  Verify signature matches pubkey │
+   │                                 ├─ UPDATE auth_sessions            │
+   │                                 │  SET signedAt = now()            │
+   │                                 ├─ Sign JWT { walletPubkey }       │
+   │                                 │  with JWT_SECRET                 │
+   │  ←── Set-Cookie: token=<JWT> ──┤  (httpOnly, Secure, SameSite=None)
+   │      (httpOnly — JS can't       │                                  │
+   │       read it, browser sends    │                                  │
+   │       it automatically)         │                                  │
+   │                                 │                                  │
+   │  All future fetch() calls       │                                  │
+   │  include credentials: "include" │                                  │
+   │  → cookie sent automatically    │                                  │
+   │  → server reads walletPubkey    │                                  │
+   │     from JWT on every request   │                                  │
+```
+
+Alice is now authenticated. The server knows every API request from her browser belongs to wallet `7xKX...AsU`. All queries are filtered to only return her data.
+
+---
+
+## Phase 1: Agent Session Key
+
+Before creating a policy, Alice needs an agent session key — a separate keypair that the AI agent will use to sign transactions. The agent never holds Alice's main wallet key.
+
+### How the session key is created
+
+**Option A: Swig session key (production)**
+
+Alice uses Swig to create a scoped session key:
+
+```
+Dashboard (/agents/new)                 Swig SDK                    Solana
+   │                                       │                          │
+   ├─ "Create session key" button ────→    │                          │
+   │                                       ├─ Create Swig sub-account │
+   │                                       │  with restrictions:       │
+   │                                       │  - Scoped to Guardrails   │
+   │                                       │    program only           │
+   │                                       │  - Expires in N days      │
+   │                                       │  - Signing restrictions   │
+   │                                       ├─ Submit to Solana ──────→ │
+   │                                       │                          │
+   │  ←── { sessionPubkey: "J2HH...QAA" } │                          │
+   │                                       │                          │
+   │  Auto-fills agent pubkey field        │                          │
+   │  in the Create Policy wizard          │                          │
+```
+
+Swig enforces session expiry and signing restrictions at the wallet layer. Guardrails enforces program/amount restrictions at the contract layer. Defense in depth.
+
+**Option B: Ephemeral keypair (MVP/demo fallback)**
+
+If Swig integration isn't ready, generate a plain keypair:
+
+```typescript
+const agentKeypair = Keypair.generate();
+// Store the secret key securely (encrypted, or in the agent's runtime)
+// The pubkey becomes the "agent" field in the policy
+const agentPubkey = agentKeypair.publicKey; // "J2HH...QAA"
+```
+
+The agent process holds this keypair and uses it to sign `guarded_execute` transactions.
+
+### Key point: the agent key holds NO funds
+
+The session key is only used to sign `guarded_execute` calls. It doesn't hold SOL or tokens. Even if compromised, the attacker can only act within the policy's limits — and the AI judge can pause it.
+
+---
+
+## Phase 2: Policy Creation & Funding
+
+Alice creates the policy and funds it so the agent can spend.
+
+### Step 1: Create policy on the dashboard (`/agents/new`)
 
 ```
 Step 1 — Programs:  [Jupiter v6, System Program]
@@ -30,9 +131,9 @@ Step 3 — Session:   Expires in 7 days
 Step 4 — Escalation: None (no Squads multisig)
 ```
 
-Alice clicks "Create Policy". Her wallet signs the `initialize_policy` transaction.
+Alice clicks "Create Policy". Her Phantom wallet signs the `initialize_policy` transaction.
 
-### On-chain
+### Step 2: On-chain — PDAs created
 
 The Guardrails program creates two PDAs:
 
@@ -58,11 +159,91 @@ window_start:        2026-04-21T00:00:00Z
 
 Alice also adds the Monitor's pubkey as an authorized monitor via `update_policy`.
 
+### Step 3: Fund the policy PDA
+
+The policy PDA is the signer authority for the agent's actions. For the agent to spend SOL or swap tokens, the **policy PDA must hold the funds** — not the agent's keypair, not Alice's wallet.
+
+**Funding SOL:**
+
+Alice sends SOL to the policy PDA address via a standard System Program transfer from her wallet:
+
+```
+Alice's wallet → System Program transfer → Policy PDA (CsZ5...qeE)
+                 amount: 20 SOL
+```
+
+This is a simple SOL transfer — no Guardrails instruction needed. Alice just sends SOL to the PDA's address like any normal transfer.
+
+**Funding SPL tokens (e.g., USDC for Jupiter swaps):**
+
+Alice creates an Associated Token Account (ATA) owned by the policy PDA, then transfers tokens into it:
+
+```
+1. Create ATA:
+   owner = Policy PDA (CsZ5...qeE)
+   mint  = USDC mint address
+   → ATA address derived from (PDA, USDC mint)
+
+2. Transfer tokens:
+   Alice's USDC ATA → spl-token transfer → Policy PDA's USDC ATA
+   amount: 1000 USDC
+```
+
+Now when the agent calls `guarded_execute` to do a Jupiter swap, the program CPIs to Jupiter with the policy PDA as signer. Jupiter moves tokens from the PDA's token account.
+
+**Key insight:** The agent instructs, the PDA acts, the PDA holds the funds. The agent's keypair never touches the money directly.
+
+```
+┌─────────────┐    signs     ┌─────────────────┐  CPI (PDA signs)  ┌──────────┐
+│ Agent key   │ ──────────→  │ guarded_execute  │ ───────────────→  │ Jupiter  │
+│ (J2HH..QAA) │              │ (validates policy)│                   │ (swaps)  │
+└─────────────┘              └─────────────────┘                   └──────────┘
+                                      │                                  │
+                              reads policy PDA                   moves tokens from
+                              checks limits                      PDA's token account
+```
+
 ---
 
-## Phase 2: Normal Operation (T+0s to T+60s)
+## Phase 3: Normal Operation (T+0s to T+60s)
 
 Alpha Scanner starts running — doing legitimate Jupiter swaps within its policy.
+
+### How the agent calls Guardrails
+
+The agent process (running on a server somewhere) builds and signs transactions using its session keypair. It never calls Jupiter directly — every call goes through `guarded_execute`:
+
+```typescript
+// Inside the agent process
+const agentKeypair = loadSessionKey(); // J2HH...QAA
+
+// Derive the policy PDA
+const [policyPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from("policy"), ownerPubkey.toBuffer(), agentKeypair.publicKey.toBuffer()],
+  GUARDRAILS_PROGRAM_ID,
+);
+
+// Call guarded_execute — NOT Jupiter directly
+const tx = await program.methods
+  .guardedExecute(
+    jupiterProgramId,          // target_program
+    jupiterInstructionData,    // instruction_data (the actual swap)
+    jupiterAccountMetas,       // account_metas (reconstructed for CPI)
+    new BN(500_000_000),       // amount_hint (0.5 SOL)
+  )
+  .accounts({
+    policy: policyPda,
+    spendTracker: spendTrackerPda,
+    agent: agentKeypair.publicKey,
+    targetProgram: jupiterProgramId,
+    clock: SYSVAR_CLOCK_PUBKEY,
+  })
+  .remainingAccounts(jupiterAccountMetas) // pass-through for CPI
+  .signers([agentKeypair])                // agent signs the outer txn
+  .rpc();
+```
+
+The Guardrails program validates the policy, then CPIs to Jupiter with the **policy PDA as signer** (via `invoke_signed`). Jupiter sees the PDA as the authority — not the agent.
 
 ### Transaction 1: Normal swap (T+10s)
 
@@ -122,7 +303,7 @@ This repeats for two more normal transactions over the next 50 seconds.
 
 ---
 
-## Phase 3: Attack Begins (T+60s)
+## Phase 4: Attack Begins (T+60s)
 
 Alpha Scanner's session key is compromised. The attacker starts draining funds to an unknown program.
 
@@ -217,7 +398,7 @@ Same pattern, 1.9 SOL. Claude responds:
 
 ---
 
-## Phase 4: Kill Switch (T+65s)
+## Phase 5: Kill Switch (T+65s)
 
 ### Server executor
 
@@ -273,7 +454,7 @@ Alert banner appears: "Alpha Scanner has been paused."
 
 ---
 
-## Phase 5: Incident Report (T+70s)
+## Phase 6: Incident Report (T+70s)
 
 ### Server reporter (async, non-blocking)
 
@@ -323,7 +504,7 @@ Alert banner appears: "Alpha Scanner has been paused."
 
 ---
 
-## Phase 6: Resolution
+## Phase 7: Resolution
 
 Alice sees the incident on her dashboard. She reviews the Opus report, rotates the agent's session key via `rotate_agent_key`, tightens the policy limits via `update_policy`, and then calls `resume_agent` from her wallet.
 
