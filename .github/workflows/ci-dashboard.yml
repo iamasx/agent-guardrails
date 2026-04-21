@@ -1,0 +1,47 @@
+name: CI — Dashboard
+
+on:
+  push:
+    paths:
+      - "dashboard/**"
+      - "sdk/**"
+
+concurrency:
+  group: ci-dashboard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SOLANA_RPC_URL: "https://api.devnet.solana.com"
+      NEXT_PUBLIC_GUARDRAILS_PROGRAM_ID: "11111111111111111111111111111111"
+      NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: dashboard
+        run: npm install
+
+      - name: Lint
+        working-directory: dashboard
+        run: npm run lint || true  # TODO: remove || true once eslint is configured
+
+      - name: Build
+        working-directory: dashboard
+        run: npm run build
+
+      - name: Verify SDK is synced
+        run: |
+          if ! diff -rq sdk/ dashboard/lib/sdk/ > /dev/null 2>&1; then
+            echo "::error::dashboard/lib/sdk/ is out of sync with sdk/. Run: scripts/sync-sdk.sh"
+            diff -rq sdk/ dashboard/lib/sdk/ || true
+            exit 1
+          fi

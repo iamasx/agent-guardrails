@@ -1,0 +1,38 @@
+name: CI — SDK Sync Check
+
+on:
+  push:
+    paths:
+      - "sdk/**"
+      - "worker/src/sdk/**"
+      - "dashboard/lib/sdk/**"
+
+concurrency:
+  group: sdk-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check worker SDK copy
+        run: |
+          if ! diff -rq sdk/ worker/src/sdk/ > /dev/null 2>&1; then
+            echo "::error::worker/src/sdk/ is out of sync with sdk/"
+            echo "Run: bash scripts/sync-sdk.sh"
+            diff -r sdk/ worker/src/sdk/
+            exit 1
+          fi
+          echo "worker/src/sdk/ is in sync"
+
+      - name: Check dashboard SDK copy
+        run: |
+          if ! diff -rq sdk/ dashboard/lib/sdk/ > /dev/null 2>&1; then
+            echo "::error::dashboard/lib/sdk/ is out of sync with sdk/"
+            echo "Run: bash scripts/sync-sdk.sh"
+            diff -r sdk/ dashboard/lib/sdk/
+            exit 1
+          fi
+          echo "dashboard/lib/sdk/ is in sync"

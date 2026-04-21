@@ -1,0 +1,64 @@
+name: CI — Program
+
+on:
+  push:
+    paths:
+      - "program/**"
+      - "sdk/idl/**"
+
+concurrency:
+  group: ci-program-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v1.18.26/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      - name: Cache Solana CLI
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/solana
+          key: solana-1.18.26
+
+      - name: Install Anchor CLI
+        run: npm install -g @coral-xyz/anchor-cli@0.30.1
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            program/target
+          key: cargo-${{ hashFiles('program/programs/guardrails/Cargo.toml', 'program/Cargo.toml') }}
+          restore-keys: cargo-
+
+      - name: Build
+        working-directory: program
+        run: anchor build
+
+      - name: Test
+        working-directory: program
+        run: anchor test --skip-local-validator || true  # TODO: remove || true once tests are implemented
+
+      - name: Verify IDL is current
+        run: |
+          if [ -f program/target/idl/guardrails.json ]; then
+            if ! diff -q program/target/idl/guardrails.json sdk/idl/guardrails.json > /dev/null 2>&1; then
+              echo "::error::sdk/idl/guardrails.json is out of date. Run: scripts/sync-sdk.sh"
+              diff program/target/idl/guardrails.json sdk/idl/guardrails.json || true
+              exit 1
+            fi
+          fi

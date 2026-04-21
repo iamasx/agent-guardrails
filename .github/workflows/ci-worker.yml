@@ -1,0 +1,41 @@
+name: CI — Worker
+
+on:
+  push:
+    paths:
+      - "worker/**"
+      - "sdk/**"
+
+concurrency:
+  group: ci-worker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        working-directory: worker
+        run: pnpm install
+
+      - name: Type-check and build
+        working-directory: worker
+        run: pnpm build
+
+      - name: Verify SDK is synced
+        run: |
+          if ! diff -rq sdk/ worker/src/sdk/ > /dev/null 2>&1; then
+            echo "::error::worker/src/sdk/ is out of sync with sdk/. Run: scripts/sync-sdk.sh"
+            diff -rq sdk/ worker/src/sdk/ || true
+            exit 1
+          fi

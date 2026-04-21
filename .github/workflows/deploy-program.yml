@@ -1,0 +1,65 @@
+name: Deploy — Program (Solana Devnet)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm devnet deployment'
+        required: true
+
+jobs:
+  deploy-devnet:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'deploy'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v1.18.26/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      - name: Cache Solana CLI
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/solana
+          key: solana-1.18.26
+
+      - name: Install Anchor CLI
+        run: npm install -g @coral-xyz/anchor-cli@0.30.1
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            program/target
+          key: cargo-${{ hashFiles('program/programs/guardrails/Cargo.toml', 'program/Cargo.toml') }}
+          restore-keys: cargo-
+
+      - name: Write deploy keypair
+        run: echo "${{ secrets.SOLANA_DEPLOY_KEYPAIR }}" | base64 -d > /tmp/deploy-keypair.json
+
+      - name: Build
+        working-directory: program
+        run: anchor build
+
+      - name: Deploy to devnet
+        working-directory: program
+        run: anchor deploy --provider.cluster devnet --provider.wallet /tmp/deploy-keypair.json
+
+      - name: Sync IDL
+        run: |
+          cp program/target/idl/guardrails.json sdk/idl/guardrails.json
+          bash scripts/sync-sdk.sh
+          echo "IDL synced. Commit the updated files if changed."
+
+      - name: Cleanup keypair
+        if: always()
+        run: rm -f /tmp/deploy-keypair.json
