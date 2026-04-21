@@ -1,13 +1,13 @@
-name: CI — Worker
+name: CI — Server
 
 on:
   push:
     paths:
-      - "worker/**"
+      - "server/**"
       - "sdk/**"
 
 concurrency:
-  group: ci-worker-${{ github.ref }}
+  group: ci-server-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -25,17 +25,21 @@ jobs:
         run: npm install -g pnpm
 
       - name: Install dependencies
-        working-directory: worker
+        working-directory: server
         run: pnpm install
 
+      - name: Generate Prisma client
+        working-directory: server
+        run: npx prisma generate
+
       - name: Type-check and build
-        working-directory: worker
+        working-directory: server
         run: pnpm build
 
       - name: Verify SDK is synced
         run: |
-          if ! diff -rq sdk/ worker/src/sdk/ > /dev/null 2>&1; then
-            echo "::error::worker/src/sdk/ is out of sync with sdk/. Run: scripts/sync-sdk.sh"
-            diff -rq sdk/ worker/src/sdk/ || true
+          if ! diff -rq sdk/ server/src/sdk/ > /dev/null 2>&1; then
+            echo "::error::server/src/sdk/ is out of sync with sdk/. Run: scripts/sync-sdk.sh"
+            diff -rq sdk/ server/src/sdk/ || true
             exit 1
           fi

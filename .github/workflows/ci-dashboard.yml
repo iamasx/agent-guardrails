@@ -16,8 +16,7 @@ jobs:
     env:
       NEXT_PUBLIC_SOLANA_RPC_URL: "https://api.devnet.solana.com"
       NEXT_PUBLIC_GUARDRAILS_PROGRAM_ID: "11111111111111111111111111111111"
-      NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder"
+      NEXT_PUBLIC_API_URL: "http://localhost:8080"
     steps:
       - uses: actions/checkout@v4
 

@@ -1,4 +1,4 @@
-name: Deploy — Worker (Fly.io)
+name: Deploy — Server (Railway/Fly.io)
 
 on:
   push:
@@ -9,19 +9,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy not configured yet
-        run: echo "Worker deploy will be enabled when Fly.io token is configured"
+        run: echo "Server deploy will be enabled when Railway/Fly.io token is configured"
 
 # TODO: uncomment when ready to deploy
 # on:
 #   push:
 #     branches: [main]
 #     paths:
-#       - "worker/**"
+#       - "server/**"
 #       - "sdk/**"
 #   workflow_dispatch:
 #
 # concurrency:
-#   group: deploy-worker
+#   group: deploy-server
 #   cancel-in-progress: false
 #
 # jobs:
@@ -34,7 +34,7 @@ jobs:
 #         uses: superfly/flyctl-actions/setup-flyctl@master
 #
 #       - name: Deploy to Fly.io
-#         working-directory: worker
+#         working-directory: server
 #         run: flyctl deploy --remote-only
 #         env:
 #           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

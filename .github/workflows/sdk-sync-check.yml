@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - "sdk/**"
-      - "worker/src/sdk/**"
+      - "server/src/sdk/**"
       - "dashboard/lib/sdk/**"
 
 concurrency:
@@ -17,15 +17,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check worker SDK copy
+      - name: Check server SDK copy
         run: |
-          if ! diff -rq sdk/ worker/src/sdk/ > /dev/null 2>&1; then
-            echo "::error::worker/src/sdk/ is out of sync with sdk/"
+          if ! diff -rq sdk/ server/src/sdk/ > /dev/null 2>&1; then
+            echo "::error::server/src/sdk/ is out of sync with sdk/"
             echo "Run: bash scripts/sync-sdk.sh"
-            diff -r sdk/ worker/src/sdk/
+            diff -r sdk/ server/src/sdk/
             exit 1
           fi
-          echo "worker/src/sdk/ is in sync"
+          echo "server/src/sdk/ is in sync"
 
       - name: Check dashboard SDK copy
         run: |
