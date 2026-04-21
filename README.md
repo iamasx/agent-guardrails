@@ -16,12 +16,12 @@ Agent Guardrails Protocol is an on-chain policy layer that sits between an AI ag
 
 1. **Allow-listing** — agent can only call whitelisted programs
 2. **Spending budgets** — per-transaction and rolling daily caps
-3. **AI kill switch** — a monitoring worker watches all activity in real time, uses Claude to judge anomalies, and can pause an agent on-chain in under 3 seconds
+3. **AI kill switch** — a monitoring server watches all activity in real time, uses Claude to judge anomalies, and can pause an agent on-chain in under 3 seconds
 
 ```
 Agent signs txn → Guardrails PDA validates → CPI to target program
                                                     ↓ (events)
-                              Helius webhook → Worker → Claude judge
+                              Helius webhook → Server → Claude judge
                                                     ↓ (if suspicious)
                                               On-chain PAUSE
 ```
@@ -39,9 +39,9 @@ graph TB
 
     subgraph "Off-Chain Infrastructure"
         Helius[Helius Webhooks]
-        Worker[Worker<br/>Node.js on Fly.io]
+        Server[Server<br/>Express on Railway/Fly.io]
         Claude[Claude API<br/>Haiku judge / Opus reports]
-        Supabase[(Supabase<br/>Postgres + Realtime)]
+        DB[(Neon Postgres<br/>via Prisma)]
     end
 
     subgraph "Frontend"
@@ -53,13 +53,13 @@ graph TB
     GR -->|CPI via PDA signer| Target
     GR -->|escalate if > threshold| Squads
     GR -->|emit events| Helius
-    Helius -->|webhook POST| Worker
-    Worker -->|judge call| Claude
-    Worker -->|persist txns + verdicts| Supabase
-    Worker -->|pause_agent tx| GR
-    Supabase -->|Realtime WS| Dashboard
+    Helius -->|webhook POST| Server
+    Server -->|judge call| Claude
+    Server -->|persist txns + verdicts| DB
+    Server -->|pause_agent tx| GR
+    Server -->|SSE push| Dashboard
     Dashboard -->|RPC reads| GR
-    Dashboard -->|queries| Supabase
+    Dashboard -->|REST API queries| Server
     Wallet -->|sign txns| Dashboard
 ```
 
@@ -70,11 +70,12 @@ graph TB
 | Smart contract | Anchor 0.30.1 / Rust |
 | Frontend | Next.js 14 (App Router) / Tailwind / shadcn/ui / Recharts |
 | Wallet | @solana/wallet-adapter (Phantom, Solflare, Backpack) + SIWS |
-| State management | TanStack Query + Zustand |
-| Monitoring worker | Node.js 20 / TypeScript on Fly.io |
+| State management | TanStack Query |
+| Server | Express + Node.js 20 / TypeScript on Railway/Fly.io |
 | Anomaly detection | Claude Haiku 4.5 (real-time) + Claude Opus 4.7 (incident reports) |
 | Data ingestion | Helius Enhanced Webhooks |
-| Database | Supabase (Postgres + Realtime + RLS) |
+| Database | Neon Postgres + Prisma ORM |
+| Realtime | Server-Sent Events (SSE) |
 | Session keys | Swig |
 | Multisig escalation | Squads v4 |
 | Testing | LiteSVM (in-process) via anchor-litesvm |
@@ -87,16 +88,15 @@ Four isolated sub-projects — no monorepo, each deploys independently:
 agent-guardrails/
 ├── program/              # Anchor/Rust on-chain program → Solana devnet
 ├── sdk/                  # IDL + TS client (source of truth, synced to consumers)
-├── worker/               # Monitoring service → Fly.io
-├── dashboard/            # Next.js 14 dashboard + demo agents → Vercel
-├── supabase/             # Database migrations
+├── server/               # Express server: API + worker pipeline → Railway/Fly.io
+├── dashboard/            # Next.js 14 frontend only → Vercel
 ├── docs/                 # Architecture, data contracts, setup, deploy, demo runbook
 ├── scripts/              # SDK sync, devnet deploy
-├── .github/workflows/    # 4 CI + 2 deploy workflows
+├── .github/workflows/    # CI + deploy workflows
 └── .claude/              # Custom commands + specialized agents for Claude Code
 ```
 
-Shared SDK is synced automatically — edit `sdk/`, a pre-commit hook copies to `worker/src/sdk/` and `dashboard/lib/sdk/`.
+Shared SDK is synced automatically — edit `sdk/`, a pre-commit hook copies to `server/src/sdk/` and `dashboard/lib/sdk/`.
 
 ## Quick Start
 
@@ -104,7 +104,6 @@ Shared SDK is synced automatically — edit `sdk/`, a pre-commit hook copies to 
 
 - Rust 1.75+, Solana CLI 1.18+, Anchor 0.30.1
 - Node.js 20+, pnpm 9+
-- Docker (for local Supabase)
 
 ### Setup
 
@@ -129,22 +128,23 @@ cd program
 anchor test --skip-local-validator --skip-deploy
 ```
 
+### Run the Server
+
+```bash
+cd server
+pnpm install
+cp .env.example .env          # fill in values (DATABASE_URL, ANTHROPIC_API_KEY, etc.)
+npx prisma migrate dev        # create database tables
+pnpm dev                      # http://localhost:8080
+```
+
 ### Run the Dashboard
 
 ```bash
 cd dashboard
 npm install
-cp .env.example .env.local   # fill in values
-npm run dev                   # http://localhost:3000
-```
-
-### Run the Worker
-
-```bash
-cd worker
-pnpm install
-cp .env.example .env          # fill in values
-pnpm dev                      # http://localhost:8080
+cp .env.example .env.local    # fill in values (NEXT_PUBLIC_API_URL, etc.)
+npm run dev                    # http://localhost:3000
 ```
 
 See [docs/env-setup.md](docs/env-setup.md) for the full local development guide.
@@ -171,12 +171,12 @@ The agent's keypair holds no funds. All funds live in token accounts owned by th
 ## How the AI Judge Works
 
 ```
-Helius webhook → Worker
-    → [Ingest] HMAC verify, parse, persist to Supabase
+Helius webhook → Server
+    → [Ingest] HMAC verify, parse, persist via Prisma → SSE push
     → [Prefilter] Cheap stat checks — skip LLM for routine txns (~70% skipped)
-    → [Judge] Claude Haiku evaluates: ALLOW / FLAG / PAUSE
-    → [Executor] If PAUSE: sign + send pause_agent on-chain
-    → [Reporter] Queue Claude Opus incident report (async)
+    → [Judge] Claude Haiku evaluates: ALLOW / FLAG / PAUSE → SSE push
+    → [Executor] If PAUSE: sign + send pause_agent on-chain → SSE push
+    → [Reporter] Queue Claude Opus incident report (async) → SSE push
 ```
 
 **Prefilter rules** (skips LLM if all hold):
@@ -197,11 +197,11 @@ Helius webhook → Worker
 | Component | Platform | Command |
 |---|---|---|
 | Program | Solana devnet | `cd program && anchor deploy` |
-| Worker | Fly.io | `cd worker && fly deploy` |
+| Database | Neon Postgres | `cd server && npx prisma migrate deploy` |
+| Server | Railway/Fly.io | `cd server && fly deploy` or `railway up` |
 | Dashboard | Vercel | Auto-deploys on push to main |
-| Database | Supabase | `npx supabase db push` |
 
-Deploy order matters: **Program** (need program ID) → **Worker** (need program ID + webhook URL) → **Dashboard** (need all URLs).
+Deploy order matters: **Program** (need program ID) → **Database** (need connection string) → **Server** (need program ID + DB + webhook URL) → **Dashboard** (need server URL).
 
 See [docs/deploy.md](docs/deploy.md) for the full deployment guide.
 
@@ -209,7 +209,7 @@ See [docs/deploy.md](docs/deploy.md) for the full deployment guide.
 
 - **[Swig](https://swig.so/)** — Session key issuance. Scoped agent keys with built-in expiry. Defense in depth with Guardrails.
 - **[Squads v4](https://squads.so/)** — Multisig escalation. High-value transactions require human approval via Squads proposal.
-- **[Helius](https://helius.dev/)** — Enhanced webhooks stream program events to the monitoring worker in real time.
+- **[Helius](https://helius.dev/)** — Enhanced webhooks stream program events to the monitoring server in real time.
 - **[Solana Agent Kit](https://github.com/sendai/solana-agent-kit)** (SendAI) — Demo agents simulate honest and malicious behavior for the live demo.
 
 ## Demo
@@ -225,15 +225,18 @@ npm run demo:setup       # Create policies on devnet
 npm run demo:simulate    # Start agents — attacker triggers at T+60s
 ```
 
-The dashboard shows normal activity streaming in, then the attack: FLAG → FLAG → PAUSE in real time. The agent is stopped on-chain in under 3 seconds. An Opus-generated incident report appears with a full timeline and root cause analysis.
+The dashboard shows normal activity streaming in via SSE, then the attack: FLAG → FLAG → PAUSE in real time. The agent is stopped on-chain in under 3 seconds. An Opus-generated incident report appears with a full timeline and root cause analysis.
 
 ## Documentation
 
 | Document | Description |
 |---|---|
-| [implementation-plan.md](implementation-plan.md) | Full specification with section numbers |
+| [implementation-plan.md](implementation-plan.md) | High-level spec, week plan, demo script, risks |
+| [program/IMPLEMENTATION.md](program/IMPLEMENTATION.md) | On-chain program design |
+| [server/IMPLEMENTATION.md](server/IMPLEMENTATION.md) | Server pipeline, API, SSE, auth |
+| [dashboard/IMPLEMENTATION.md](dashboard/IMPLEMENTATION.md) | Frontend components, data fetching, SSE |
 | [docs/architecture.md](docs/architecture.md) | System topology and data flow diagrams |
-| [docs/data-contracts.md](docs/data-contracts.md) | Account layouts, events, Supabase schemas, API contracts |
+| [docs/data-contracts.md](docs/data-contracts.md) | Account layouts, events, Prisma schemas, API contracts |
 | [docs/env-setup.md](docs/env-setup.md) | Local development setup guide |
 | [docs/deploy.md](docs/deploy.md) | Deployment guide for all components |
 | [docs/demo-runbook.md](docs/demo-runbook.md) | Demo day operator's guide |
