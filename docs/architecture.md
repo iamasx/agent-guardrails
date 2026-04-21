@@ -13,9 +13,9 @@ graph TB
 
     subgraph "Off-Chain Infrastructure"
         Helius[Helius Webhooks]
-        Worker[Worker<br/>Node.js on Fly.io]
+        Server[Server<br/>Express on Railway/Fly.io]
         Claude[Claude API<br/>Haiku judge / Opus reports]
-        Supabase[(Supabase<br/>Postgres + Realtime)]
+        DB[(Neon Postgres<br/>via Prisma)]
     end
 
     subgraph "Frontend"
@@ -27,13 +27,13 @@ graph TB
     GR -->|CPI via PDA signer| Target
     GR -->|escalate if > threshold| Squads
     GR -->|emit events| Helius
-    Helius -->|webhook POST| Worker
-    Worker -->|judge call| Claude
-    Worker -->|persist txns + verdicts| Supabase
-    Worker -->|pause_agent tx| GR
-    Supabase -->|Realtime WS| Dashboard
+    Helius -->|webhook POST| Server
+    Server -->|judge call| Claude
+    Server -->|persist txns + verdicts| DB
+    Server -->|pause_agent tx| GR
+    Server -->|SSE push| Dashboard
     Dashboard -->|RPC reads| GR
-    Dashboard -->|queries| Supabase
+    Dashboard -->|REST API queries| Server
     Wallet -->|sign txns| Dashboard
 ```
 
@@ -45,10 +45,10 @@ sequenceDiagram
     participant G as Guardrails PDA
     participant T as Target Program
     participant H as Helius
-    participant W as Worker
+    participant S as Server (worker pipeline)
     participant C as Claude Haiku
-    participant S as Supabase
-    participant D as Dashboard
+    participant DB as Neon Postgres
+    participant D as Dashboard (via SSE)
 
     A->>G: guarded_execute(target, data, amount_hint)
     G->>G: 1. Load PermissionPolicy PDA
@@ -67,21 +67,68 @@ sequenceDiagram
         G->>G: 11. Emit GuardedTxnExecuted
     end
 
-    H->>W: POST webhook (event data)
-    W->>W: HMAC verify
-    W->>S: Insert guarded_txns row
-    W->>W: Prefilter (stat checks)
+    H->>S: POST /webhook (event data)
+    S->>S: HMAC verify
+    S->>DB: Insert guarded_txns row (Prisma)
+    S-->>D: SSE emit "new_transaction"
+    S->>S: Prefilter (stat checks)
     alt suspicious
-        W->>C: Judge request (policy + txn + history)
-        C-->>W: { verdict, confidence, reasoning }
-        W->>S: Insert anomaly_verdict
+        S->>C: Judge request (policy + txn + history)
+        C-->>S: { verdict, confidence, reasoning }
+        S->>DB: Insert anomaly_verdict (Prisma)
+        S-->>D: SSE emit "verdict"
         alt verdict == "pause"
-            W->>G: pause_agent(reason)
-            W->>S: Insert incident
-            W-->>C: Queue Opus incident report (async)
+            S->>G: pause_agent(reason)
+            S->>DB: Insert incident (Prisma)
+            S-->>D: SSE emit "agent_paused"
+            S-->>C: Queue Opus incident report (async)
+            Note over S,D: SSE emit "report_ready" when done
         end
     end
-    S-->>D: Realtime update
+```
+
+## Server Architecture
+
+```mermaid
+graph TB
+    subgraph "Server (single Express process)"
+        subgraph "Worker Module"
+            WH[POST /webhook]
+            IN[ingest]
+            PF[prefilter]
+            JG[judge]
+            EX[executor]
+            RP[reporter]
+        end
+
+        subgraph "API Module"
+            TX[GET /api/transactions]
+            IC[GET /api/incidents]
+            PL[GET /api/policies]
+            AU[POST /api/auth/siws/*]
+            EV[GET /api/events SSE]
+        end
+
+        subgraph "Shared"
+            DB_C[db/client.ts<br/>Prisma]
+            SSE[sse/emitter.ts<br/>EventEmitter]
+        end
+    end
+
+    WH --> IN --> PF --> JG --> EX --> RP
+    IN --> DB_C
+    JG --> DB_C
+    EX --> DB_C
+    RP --> DB_C
+    IN --> SSE
+    JG --> SSE
+    EX --> SSE
+    RP --> SSE
+
+    TX --> DB_C
+    IC --> DB_C
+    PL --> DB_C
+    EV --> SSE
 ```
 
 ## SDK Sync Flow
@@ -92,12 +139,12 @@ graph LR
     IDL -->|sync-sdk.sh copies| SDK[sdk/idl/guardrails.json]
     EDIT[Edit sdk/client.ts<br/>or sdk/types.ts] --> SDK_DIR[sdk/]
 
-    SDK_DIR -->|sync-sdk.sh| W[worker/src/sdk/]
+    SDK_DIR -->|sync-sdk.sh| S[server/src/sdk/]
     SDK_DIR -->|sync-sdk.sh| D[dashboard/lib/sdk/]
 
     HOOK[.githooks/pre-commit] -->|auto-triggers| SYNC[scripts/sync-sdk.sh]
-    CI[CI workflows] -->|diff check| W
+    CI[CI workflows] -->|diff check| S
     CI -->|diff check| D
 ```
 
-**Rule:** Never edit `worker/src/sdk/` or `dashboard/lib/sdk/` directly. Always edit `sdk/` and run `bash scripts/sync-sdk.sh`.
+**Rule:** Never edit `server/src/sdk/` or `dashboard/lib/sdk/` directly. Always edit `sdk/` and run `bash scripts/sync-sdk.sh`.

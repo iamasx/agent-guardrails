@@ -1,6 +1,6 @@
 # Data Contracts
 
-Cross-boundary data shapes used between components. Source: implementation-plan.md sections 3–5.
+Cross-boundary data shapes used between components.
 
 ---
 
@@ -91,75 +91,87 @@ Seeds: `["tracker", policy_pubkey]`
 
 ---
 
-## 3. Supabase Tables
+## 3. Database Tables (Neon Postgres via Prisma)
+
+Schema defined in `server/prisma/schema.prisma`. Blockchain is source of truth for policies — DB mirrors for query speed.
 
 ### policies (mirror of on-chain state)
-| Column | Type | Notes |
-|---|---|---|
-| pubkey | text PK | Policy PDA address |
-| owner | text | Owner wallet |
-| agent | text | Agent session pubkey |
-| allowed_programs | text[] | Program addresses |
-| max_tx_lamports | bigint | |
-| daily_budget_lamports | bigint | |
-| session_expiry | timestamptz | |
-| is_active | boolean | |
-| squads_multisig | text | nullable |
-| escalation_threshold | bigint | nullable |
-| anomaly_score | smallint | 0–100 |
-| label | text | User-friendly name |
-| created_at | timestamptz | |
-| updated_at | timestamptz | |
+| Column | Prisma field | Type | Notes |
+|---|---|---|---|
+| pubkey | pubkey | String @id | Policy PDA address |
+| owner | owner | String | Owner wallet |
+| agent | agent | String | Agent session pubkey |
+| allowed_programs | allowedPrograms | String[] | Program addresses |
+| max_tx_lamports | maxTxLamports | BigInt | |
+| daily_budget_lamports | dailyBudgetLamports | BigInt | |
+| session_expiry | sessionExpiry | DateTime | |
+| is_active | isActive | Boolean | |
+| squads_multisig | squadsMultisig | String? | |
+| escalation_threshold | escalationThreshold | BigInt? | |
+| anomaly_score | anomalyScore | Int @db.SmallInt | 0–100 |
+| label | label | String? | User-friendly name |
+| created_at | createdAt | DateTime | |
+| updated_at | updatedAt | DateTime | |
 
 ### guarded_txns
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid PK | |
-| policy_pubkey | text FK→policies | |
-| txn_sig | text UNIQUE | Solana transaction signature |
-| slot | bigint | |
-| block_time | timestamptz | |
-| target_program | text | |
-| amount_lamports | bigint | nullable |
-| status | text | 'executed' \| 'rejected' \| 'escalated' |
-| reject_reason | text | nullable |
-| raw_event | jsonb | |
-| created_at | timestamptz | |
+| Column | Prisma field | Type | Notes |
+|---|---|---|---|
+| id | id | String @id @default(uuid()) | |
+| policy_pubkey | policyPubkey | String FK→policies | |
+| txn_sig | txnSig | String @unique | Solana transaction signature |
+| slot | slot | BigInt | |
+| block_time | blockTime | DateTime | |
+| target_program | targetProgram | String | |
+| amount_lamports | amountLamports | BigInt? | |
+| status | status | String | 'executed' \| 'rejected' \| 'escalated' |
+| reject_reason | rejectReason | String? | |
+| raw_event | rawEvent | Json? | |
+| created_at | createdAt | DateTime | |
 
 ### anomaly_verdicts
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid PK | |
-| txn_id | uuid FK→guarded_txns | |
-| policy_pubkey | text | |
-| verdict | text | 'allow' \| 'flag' \| 'pause' |
-| confidence | smallint | 0–100 |
-| reasoning | text | |
-| model | text | 'claude-haiku-4-5-20251001' \| 'claude-opus-4-7' (full model ID with date) |
-| latency_ms | integer | |
-| prefilter_skipped | boolean | |
-| prompt_tokens | integer | |
-| completion_tokens | integer | |
-| created_at | timestamptz | |
+| Column | Prisma field | Type | Notes |
+|---|---|---|---|
+| id | id | String @id @default(uuid()) | |
+| txn_id | txnId | String @unique FK→guarded_txns | cascade delete |
+| policy_pubkey | policyPubkey | String | |
+| verdict | verdict | String | 'allow' \| 'flag' \| 'pause' |
+| confidence | confidence | Int @db.SmallInt | 0–100 |
+| reasoning | reasoning | String | |
+| model | model | String | 'claude-haiku-4-5' \| 'claude-opus-4-7' |
+| latency_ms | latencyMs | Int? | |
+| prefilter_skipped | prefilterSkipped | Boolean | |
+| prompt_tokens | promptTokens | Int? | |
+| completion_tokens | completionTokens | Int? | |
+| created_at | createdAt | DateTime | |
 
 ### incidents
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid PK | |
-| policy_pubkey | text FK→policies | |
-| paused_at | timestamptz | |
-| paused_by | text | Monitor or owner pubkey |
-| reason | text | |
-| triggering_txn_sig | text | |
-| judge_verdict_id | uuid FK→anomaly_verdicts | |
-| full_report | text | Opus-generated postmortem |
-| resolved_at | timestamptz | nullable |
-| resolution | text | nullable |
-| created_at | timestamptz | |
+| Column | Prisma field | Type | Notes |
+|---|---|---|---|
+| id | id | String @id @default(uuid()) | |
+| policy_pubkey | policyPubkey | String FK→policies | |
+| paused_at | pausedAt | DateTime | |
+| paused_by | pausedBy | String | Monitor or owner pubkey |
+| reason | reason | String | |
+| triggering_txn_sig | triggeringTxnSig | String? | |
+| judge_verdict_id | judgeVerdictId | String? FK→anomaly_verdicts | |
+| full_report | fullReport | String? | Opus-generated postmortem |
+| resolved_at | resolvedAt | DateTime? | |
+| resolution | resolution | String? | |
+| created_at | createdAt | DateTime | |
+
+### auth_sessions
+| Column | Prisma field | Type | Notes |
+|---|---|---|---|
+| id | id | String @id @default(uuid()) | |
+| wallet_pubkey | walletPubkey | String | |
+| nonce | nonce | String | |
+| signed_at | signedAt | DateTime? | |
+| expires_at | expiresAt | DateTime | |
+| created_at | createdAt | DateTime | |
 
 ---
 
-## 4. Worker ↔ Claude API Contract
+## 4. Server ↔ Claude API Contract
 
 ### JudgeContext (input to prompt builder)
 ```typescript
@@ -204,3 +216,16 @@ interface Verdict {
   signals: string[];     // short signal strings
 }
 ```
+
+---
+
+## 5. SSE Event Types (Server → Dashboard)
+
+Four event types pushed via `GET /api/events` (Server-Sent Events):
+
+| Event | Emitted by | Payload | Dashboard action |
+|---|---|---|---|
+| `new_transaction` | ingest.ts | GuardedTxn row | Invalidate transactions query |
+| `verdict` | judge.ts | AnomalyVerdict + signals | Invalidate transactions query |
+| `agent_paused` | executor.ts | Incident row | Invalidate incidents + policies queries |
+| `report_ready` | reporter.ts | { incidentId, policyPubkey } | Invalidate incidents query |

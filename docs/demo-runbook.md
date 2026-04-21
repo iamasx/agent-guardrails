@@ -7,10 +7,10 @@ Operator's guide for running the 3-minute hackathon demo. Use when rehearsing or
 ## Pre-Demo Checklist
 
 - [ ] Program deployed on devnet — `solana program show <PROGRAM_ID> --url devnet`
-- [ ] Worker running on Fly.io — `curl https://guardrails-worker.fly.dev/health`
+- [ ] Server running on Railway/Fly.io — `curl https://<server-url>/webhook` (should return 405)
 - [ ] Dashboard live on Vercel — open in browser
-- [ ] Supabase project active with migrations applied
-- [ ] Helius webhook configured and pointing to worker URL
+- [ ] Neon database has tables — `cd server && npx prisma studio`
+- [ ] Helius webhook configured and pointing to server URL
 - [ ] Demo keypairs funded — `solana balance <KEYPAIR> --url devnet` (need ~5 SOL each)
 - [ ] Demo policy created — `cd dashboard && npm run demo:setup`
 - [ ] Backup demo recording uploaded (in case of live failure)
@@ -49,8 +49,8 @@ This runs:
 | T+60s | Attacker starts burst-swapping |
 | T+62s | First FLAG verdict from Claude |
 | T+63s | PAUSE verdict — on-chain pause executed |
-| T+65s | Incident appears in dashboard |
-| T+70s | Opus incident report generates |
+| T+65s | Incident appears in dashboard (via SSE) |
+| T+70s | Opus incident report generates (via SSE) |
 
 **Note:** If Claude API latency spikes >3s, the pause may take longer. Do dry runs to calibrate timing before demo day.
 
@@ -78,16 +78,16 @@ This runs:
 - Switch to the pre-recorded demo video
 - Or use localnet: run a local validator and adjust RPC URLs
 
-### Worker is down
-- Check Fly.io logs: `fly logs -a guardrails-worker`
-- Restart: `fly machine restart -a guardrails-worker`
+### Server is down
+- Check logs: `fly logs -a guardrails-server` or Railway dashboard
+- Restart: `fly machine restart -a guardrails-server` or redeploy on Railway
 
 ### Claude API latency > 3s
-- Worker falls back to rule-based verdict (if implemented)
+- Server falls back to rule-based verdict (if implemented)
 - Narrate: "In production, the 3-second timeout triggers a rule-based fallback"
 
 ### Dashboard won't load
-- Show the Supabase dashboard directly as proof of data
+- Show Prisma Studio (`npx prisma studio`) as proof of data in the database
 - Show Solana Explorer for on-chain events
 
 ### Demo agents fail to connect

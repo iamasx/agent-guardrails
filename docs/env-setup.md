@@ -14,9 +14,6 @@ npm install -g @coral-xyz/anchor-cli@0.30.1
 node --version   # must be 20+
 npm install -g pnpm@9
 
-# Docker (for Supabase local)
-docker --version  # must be running
-
 # Solana keypair
 solana-keygen new --no-bip39-passphrase  # skip if you already have one
 ```
@@ -64,53 +61,54 @@ Update the program ID in:
 - Rebuild after updating: `cd program && anchor build && cd .. && bash scripts/sync-sdk.sh`
 
 Later, set it in env files:
-- `worker/.env` → `GUARDRAILS_PROGRAM_ID`
+- `server/.env` → `GUARDRAILS_PROGRAM_ID`
 - `dashboard/.env.local` → `NEXT_PUBLIC_GUARDRAILS_PROGRAM_ID`
 
-## Step 4: Start Supabase (Terminal 2)
+## Step 4: Set Up Database
+
+Create a free Neon database at [neon.tech](https://neon.tech) (or use a local Postgres).
+
+Note the connection strings:
+- **Pooled connection** → for `DATABASE_URL`
+- **Direct connection** → for `DIRECT_URL` (used by Prisma migrations)
+
+Run migrations:
+```bash
+cd server
+pnpm install
+npx prisma migrate dev
+cd ..
+```
+
+## Step 5: Configure and Start Server (Terminal 2)
 
 ```bash
-npx supabase start
+cp server/.env.example server/.env
 ```
 
-Note the output values:
-- **API URL** → `http://localhost:54321`
-- **anon key** → for dashboard
-- **service_role key** → for worker
-
-Run migrations once they exist:
-```bash
-npx supabase db reset
+Edit `server/.env`:
 ```
-
-## Step 5: Configure Worker Environment
-
-```bash
-cp worker/.env.example worker/.env
-```
-
-Edit `worker/.env`:
-```
+PORT=8080
 SOLANA_RPC_URL=http://localhost:8899
 GUARDRAILS_PROGRAM_ID=<from step 3>
 MONITOR_KEYPAIR=~/.config/solana/id.json
 HELIUS_WEBHOOK_SECRET=local-dev-secret
 ANTHROPIC_API_KEY=<your Anthropic key>
-SUPABASE_URL=http://localhost:54321
-SUPABASE_SERVICE_ROLE=<from step 4>
+DATABASE_URL=<from step 4, pooled>
+DIRECT_URL=<from step 4, direct>
+JWT_SECRET=local-dev-secret
+CORS_ORIGIN=http://localhost:3000
 ```
 
-## Step 6: Start Worker (Terminal 3)
-
 ```bash
-cd worker
+cd server
 pnpm install
 pnpm dev
 ```
 
-Runs on `http://localhost:8080`. On localnet there's no Helius — POST mock webhook payloads to test.
+Server runs on `http://localhost:8080`. On localnet there's no Helius — POST mock webhook payloads to test.
 
-## Step 7: Configure and Start Dashboard (Terminal 4)
+## Step 6: Configure and Start Dashboard (Terminal 3)
 
 ```bash
 cp dashboard/.env.example dashboard/.env.local
@@ -120,9 +118,7 @@ Edit `dashboard/.env.local`:
 ```
 NEXT_PUBLIC_SOLANA_RPC_URL=http://localhost:8899
 NEXT_PUBLIC_GUARDRAILS_PROGRAM_ID=<from step 3>
-NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<from step 4>
-SUPABASE_SERVICE_ROLE=<from step 4>
+NEXT_PUBLIC_API_URL=http://localhost:8080
 ```
 
 ```bash
@@ -136,6 +132,6 @@ Dashboard at `http://localhost:3000`.
 ## Verify
 
 1. Program tests pass: `cd program && anchor test --skip-local-validator --skip-deploy`
-2. Dashboard loads at localhost:3000
-3. Worker responds at localhost:8080
-4. Supabase Studio at `http://localhost:54323`
+2. Server responds at localhost:8080
+3. Dashboard loads at localhost:3000
+4. Database tables exist: `cd server && npx prisma studio` (opens at localhost:5555)
