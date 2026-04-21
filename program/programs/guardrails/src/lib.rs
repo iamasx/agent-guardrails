@@ -31,6 +31,10 @@ pub mod guardrails {
         Ok(())
     }
 
+    pub fn rotate_agent_key(_ctx: Context<RotateAgentKey>) -> Result<()> {
+        Ok(())
+    }
+
     pub fn escalate_to_squads(_ctx: Context<EscalateToSquads>) -> Result<()> {
         Ok(())
     }
@@ -51,6 +55,9 @@ pub struct PauseAgent {}
 
 #[derive(Accounts)]
 pub struct ResumeAgent {}
+
+#[derive(Accounts)]
+pub struct RotateAgentKey {}
 
 #[derive(Accounts)]
 pub struct EscalateToSquads {}
