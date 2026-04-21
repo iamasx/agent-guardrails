@@ -105,6 +105,234 @@ The session key is only used to sign `guarded_execute` calls. It doesn't hold SO
 
 ---
 
+## How an AI Agent Integrates with Guardrails
+
+This section explains where Guardrails fits in an agent's runtime — the "before and after" of adopting the protocol.
+
+### Without Guardrails (today's agents)
+
+A typical Solana AI agent (built with Solana Agent Kit, LangChain, or custom code) holds a full-privilege keypair and calls programs directly:
+
+```
+┌──────────────────────────────────────────────────┐
+│  Agent Runtime (e.g., Node.js process)           │
+│                                                  │
+│  const wallet = Keypair.fromSecretKey(...)       │
+│  // wallet holds SOL + tokens directly           │
+│                                                  │
+│  // Agent decides to swap on Jupiter:            │
+│  jupiter.swap({                                  │
+│    inputMint: USDC,                              │
+│    outputMint: SOL,                              │
+│    amount: 500_000_000,                          │
+│    userPublicKey: wallet.publicKey,  ← full key  │
+│  })                                              │
+│                                                  │
+│  // Nothing stops it from:                       │
+│  // - Draining the entire wallet                 │
+│  // - Calling any program                        │
+│  // - Spending unlimited amounts                 │
+│  // - Operating after session should end         │
+└──────────────────────────────────────────────────┘
+         │
+         ▼ direct call, no restrictions
+┌──────────────────┐
+│  Jupiter / DeFi  │
+└──────────────────┘
+```
+
+If the agent is compromised (prompt injection, key leak, buggy logic), there's no safety net. It has the same power as the human owner.
+
+### With Guardrails
+
+The agent's runtime changes in two ways:
+1. It uses a **Swig session key** instead of the owner's wallet
+2. Every on-chain action goes through **`guarded_execute`** instead of calling programs directly
+
+```
+┌──────────────────────────────────────────────────┐
+│  Agent Runtime (same Node.js process)            │
+│                                                  │
+│  const sessionKey = loadSwigSessionKey(...)      │
+│  // session key holds NO funds                   │
+│  // scoped to Guardrails program only            │
+│                                                  │
+│  // Agent decides to swap on Jupiter:            │
+│  // Instead of calling Jupiter directly,         │
+│  // it calls guarded_execute:                    │
+│                                                  │
+│  guardrailsProgram.methods                       │
+│    .guardedExecute(                              │
+│      jupiterProgramId,         // target         │
+│      jupiterInstructionData,   // what to do     │
+│      jupiterAccountMetas,      // accounts       │
+│      new BN(500_000_000),      // amount hint    │
+│    )                                             │
+│    .signers([sessionKey])      ← limited key     │
+│    .rpc()                                        │
+│                                                  │
+│  // The agent CANNOT:                            │
+│  // ✗ Call non-whitelisted programs              │
+│  // ✗ Spend above per-tx or daily limits         │
+│  // ✗ Operate after session expiry               │
+│  // ✗ Continue after being paused                │
+└──────────────────────────────────────────────────┘
+         │
+         ▼ guarded_execute (session key signs)
+┌──────────────────────────────────────────────────┐
+│  Guardrails Program (on-chain)                   │
+│                                                  │
+│  1. Load policy → check allow-list, budgets      │
+│  2. Validate amount, session, active status      │
+│  3. If OK → CPI to Jupiter (PDA signs)           │
+│  4. Update spend tracker                         │
+│  5. Emit events for monitoring                   │
+└──────────────────────────────────────────────────┘
+         │
+         ▼ CPI (policy PDA signs, not agent)
+┌──────────────────┐
+│  Jupiter / DeFi  │
+└──────────────────┘
+```
+
+### What changes in the agent's code
+
+The integration is minimal. Here's a before/after for a Jupiter swap:
+
+**Before (direct call):**
+```typescript
+// Agent calls Jupiter directly with full wallet
+const tx = await jupiter.swap({
+  inputMint: USDC_MINT,
+  outputMint: SOL_MINT,
+  amount: 500_000_000,
+  userPublicKey: wallet.publicKey,
+  slippageBps: 50,
+});
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+**After (through Guardrails):**
+```typescript
+// Agent builds the Jupiter instruction but routes it through guarded_execute
+const jupiterIx = await jupiter.createSwapInstruction({
+  inputMint: USDC_MINT,
+  outputMint: SOL_MINT,
+  amount: 500_000_000,
+  userPublicKey: policyPda,  // ← PDA is the authority, not agent
+  slippageBps: 50,
+});
+
+await guardrailsProgram.methods
+  .guardedExecute(
+    jupiterIx.programId,
+    jupiterIx.data,
+    jupiterIx.keys,
+    new BN(500_000_000),
+  )
+  .accounts({
+    policy: policyPda,
+    spendTracker: spendTrackerPda,
+    agent: sessionKey.publicKey,
+    targetProgram: jupiterIx.programId,
+    clock: SYSVAR_CLOCK_PUBKEY,
+  })
+  .remainingAccounts(jupiterIx.keys)
+  .signers([sessionKey])
+  .rpc();
+```
+
+The key differences:
+1. **Authority changes:** Jupiter sees the policy PDA as the user, not the agent
+2. **Session key signs:** The agent uses its limited Swig key, not the owner's wallet
+3. **Validation happens automatically:** The program checks limits before CPI
+4. **Events are emitted:** The server monitors everything in real-time
+
+### What the agent framework needs
+
+For agents built with Solana Agent Kit (SendAI) or similar frameworks, the integration is a wrapper:
+
+```typescript
+// Wrap the agent's action executor
+class GuardedExecutor {
+  constructor(
+    private program: Program,
+    private sessionKey: Keypair,
+    private policyPda: PublicKey,
+    private spendTrackerPda: PublicKey,
+  ) {}
+
+  // Replace the agent's default send method
+  async execute(instruction: TransactionInstruction, amountLamports: bigint) {
+    return this.program.methods
+      .guardedExecute(
+        instruction.programId,
+        instruction.data,
+        instruction.keys,
+        new BN(amountLamports.toString()),
+      )
+      .accounts({
+        policy: this.policyPda,
+        spendTracker: this.spendTrackerPda,
+        agent: this.sessionKey.publicKey,
+        targetProgram: instruction.programId,
+        clock: SYSVAR_CLOCK_PUBKEY,
+      })
+      .remainingAccounts(instruction.keys)
+      .signers([this.sessionKey])
+      .rpc();
+  }
+}
+
+// Usage in agent code:
+const executor = new GuardedExecutor(program, sessionKey, policyPda, trackerPda);
+
+// Instead of: await sendTransaction(jupiterSwapIx)
+// Now:        await executor.execute(jupiterSwapIx, 500_000_000n)
+```
+
+Any agent framework that produces `TransactionInstruction` objects can be wrapped with `GuardedExecutor`. The agent's decision-making logic doesn't change — only the execution layer.
+
+### The complete runtime picture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Agent Runtime                                                      │
+│                                                                     │
+│  ┌─────────────┐     ┌──────────────────┐     ┌──────────────────┐ │
+│  │ AI Decision │ ──→ │ Build Instruction │ ──→ │ GuardedExecutor  │ │
+│  │ (LLM/logic) │     │ (Jupiter, etc.)  │     │ (wraps in        │ │
+│  │             │     │                  │     │  guarded_execute) │ │
+│  └─────────────┘     └──────────────────┘     └────────┬─────────┘ │
+│                                                        │           │
+│  Swig session key signs ──────────────────────────────┘           │
+└───────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌───────────────────────────────────────────────────────────────────┐
+│  Solana                                                           │
+│                                                                   │
+│  ┌─────────────────────┐      ┌──────────────────┐               │
+│  │ Guardrails Program  │ CPI  │ Target Program   │               │
+│  │ (validate + proxy)  │ ───→ │ (Jupiter, etc.)  │               │
+│  │                     │      │                  │               │
+│  │ Policy PDA signs ───┘      └──────────────────┘               │
+│  │ Events emitted ────────────────────────────────→ Helius       │
+│  └─────────────────────┘                                         │
+└───────────────────────────────────────────────────────────────────┘
+                                                        │
+                                                        ▼
+┌───────────────────────────────────────────────────────────────────┐
+│  Server (monitoring)                                              │
+│  Helius webhook → ingest → prefilter → judge → executor/reporter │
+│  SSE push → Dashboard                                            │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+The agent thinks and decides. The `GuardedExecutor` routes every action through Guardrails. The program enforces limits on-chain. The server watches everything off-chain. Three layers, one integration point.
+
+---
+
 ## Phase 2: Policy Creation & Funding
 
 Alice creates the policy and funds it so the agent can spend.
