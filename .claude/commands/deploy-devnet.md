@@ -7,5 +7,5 @@ Steps:
 4. Confirm with the user before deploying: "Deploy program <ID> to devnet? This requires a funded keypair."
 5. Run `cd program && anchor deploy --provider.cluster devnet`.
 6. Run `bash scripts/sync-sdk.sh` to propagate the new IDL.
-7. Check if `worker/.env` and `dashboard/.env.local` exist — if so, update `GUARDRAILS_PROGRAM_ID` / `NEXT_PUBLIC_GUARDRAILS_PROGRAM_ID` with the new ID.
+7. Check if `server/.env` and `dashboard/.env.local` exist — if so, update `GUARDRAILS_PROGRAM_ID` / `NEXT_PUBLIC_GUARDRAILS_PROGRAM_ID` with the new ID.
 8. Report the deployed program ID and suggest next steps.

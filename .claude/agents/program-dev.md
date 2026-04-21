@@ -11,7 +11,7 @@ The program lives in `program/programs/guardrails/src/`. You build the on-chain 
 
 ## Source of truth
 
-- `implementation-plan.md` sections 3.1–3.6 define every account, instruction, event, and error
+- `program/IMPLEMENTATION.md` defines every account, instruction, event, and error
 - `docs/data-contracts.md` has the canonical account layouts and event shapes
 - `docs/architecture.md` shows how the program fits in the full system
 

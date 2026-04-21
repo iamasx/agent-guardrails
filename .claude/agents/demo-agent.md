@@ -45,7 +45,7 @@ Demo scripts live in `dashboard/scripts/`. You build the agents that generate sy
 ### simulate-attack.ts
 - Starts trader + staker running normally
 - At T+60s, starts the attacker
-- The worker should detect and pause the attacker within 3 seconds
+- The server worker pipeline should detect and pause the attacker within 3 seconds
 - Logs timing and events for the presenter
 
 ## Key files
@@ -64,5 +64,5 @@ Demo scripts live in `dashboard/scripts/`. You build the agents that generate sy
 - Use devnet for all demo activity
 - Airdrop sufficient SOL before starting (5 SOL per keypair)
 - Log activity in a format that matches what the dashboard activity feed shows
-- The attacker must produce patterns that trigger specific prefilter signals (section 5.2): new program, burst >5 txns/60s, amount >70% of cap
+- The attacker must produce patterns that trigger specific prefilter signals: new program, burst >5 txns/60s, amount >70% of cap
 - Make timing reproducible — use fixed delays, not random intervals, for demo reliability
