@@ -8,6 +8,7 @@ Next.js 14 App Router. Frontend only — no API routes, no direct database acces
 - Recharts for charts
 - @solana/wallet-adapter-react (Phantom, Solflare, Backpack)
 - @tanstack/react-query v5 (server state cache)
+- Zustand (client-side UI state)
 
 ## Data sources
 

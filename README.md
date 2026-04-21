@@ -70,7 +70,7 @@ graph TB
 | Smart contract | Anchor 0.30.1 / Rust |
 | Frontend | Next.js 14 (App Router) / Tailwind / shadcn/ui / Recharts |
 | Wallet | @solana/wallet-adapter (Phantom, Solflare, Backpack) + SIWS |
-| State management | TanStack Query |
+| State management | TanStack Query + Zustand |
 | Server | Express + Node.js 20 / TypeScript |
 | Anomaly detection | Claude Haiku 4.5 (real-time) + Claude Opus 4.7 (incident reports) |
 | Data ingestion | Helius Enhanced Webhooks |

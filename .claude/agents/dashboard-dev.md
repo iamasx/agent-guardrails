@@ -22,6 +22,7 @@ The dashboard lives in `dashboard/`. It shows agent status, activity feeds, spen
 - Recharts for charts (SpendGauge)
 - @solana/wallet-adapter-react — Phantom, Solflare, Backpack
 - @tanstack/react-query v5 — server state cache
+- Zustand — client-side UI state (sidebar, filters, selected tabs)
 
 ## Data sources
 

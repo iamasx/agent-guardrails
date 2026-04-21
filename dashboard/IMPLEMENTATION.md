@@ -58,9 +58,19 @@ dashboard/
 
 ---
 
-## 4. Data fetching
+## 4. State management
 
-### 4.1 On-chain state (authoritative)
+- **Server state** (API responses, on-chain reads): TanStack Query — caches, deduplicates, refetches
+- **Client UI state** (sidebar open, selected filters, active tab): Zustand stores
+- **SSE events**: Insert directly into TanStack Query cache via `setQueryData`
+
+Zustand stores live in `lib/stores/`. Keep them small and focused — one store per concern.
+
+---
+
+## 5. Data fetching
+
+### 5.1 On-chain state (authoritative)
 
 Read via Anchor client, cached with TanStack Query (30s stale time).
 
@@ -72,7 +82,7 @@ const { data: policy } = useQuery({
 });
 ```
 
-### 4.2 Historical data (server API)
+### 5.2 Historical data (server API)
 
 Fetch helpers in `lib/api/client.ts`. All calls include `credentials: "include"` for auth cookies.
 
@@ -103,7 +113,7 @@ const { data: txns, isLoading } = useQuery({
 });
 ```
 
-### 4.3 Realtime (SSE)
+### 5.3 Realtime (SSE)
 
 Single EventSource connection to server. SSE events carry full payloads — insert directly into TanStack Query cache, no refetch needed.
 
@@ -160,7 +170,7 @@ Mount in root layout or a top-level provider so it's active across all pages.
 
 ---
 
-## 5. SIWS auth flow
+## 6. SIWS auth flow
 
 Dashboard side of Sign-In With Solana. Server handles verification + JWT issuance.
 
@@ -184,7 +194,7 @@ Dashboard side of Sign-In With Solana. Server handles verification + JWT issuanc
 
 ---
 
-## 6. Mock data
+## 7. Mock data
 
 `lib/mock/` contains fixture data matching the database schema. Use while building UI before server is ready.
 
@@ -201,7 +211,7 @@ Swap for real API calls when server is ready.
 
 ---
 
-## 7. Environment variables
+## 8. Environment variables
 
 ```
 NEXT_PUBLIC_SOLANA_RPC_URL=http://localhost:8899
@@ -213,7 +223,7 @@ All public — no server secrets. Dashboard is frontend only.
 
 ---
 
-## 8. Conventions
+## 9. Conventions
 
 - Pages are Server Components by default. `"use client"` only for interactivity.
 - Tailwind only — no CSS modules
@@ -225,7 +235,7 @@ All public — no server secrets. Dashboard is frontend only.
 
 ---
 
-## 9. Build order (Week 4)
+## 10. Build order (Week 4)
 
 1. Scaffold + Tailwind + shadcn + wallet adapter + API helpers + SSE hook + SIWS flow (Mon)
 2. `/agents` list + `PolicyCard` + TanStack Query hooks (Tue)

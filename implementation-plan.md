@@ -15,7 +15,7 @@
 | Frontend | Next.js 14 (App Router) | Deployed on Vercel — frontend only, no API routes |
 | UI | Tailwind + shadcn/ui + Recharts | Dark mode default — looks pro in demo |
 | Wallet | `@solana/wallet-adapter-react` + SIWS | Phantom, Solflare, Backpack supported |
-| State | TanStack Query + useState | Query = server cache, useState = UI state |
+| State | TanStack Query + Zustand | Query = server cache, Zustand = client UI state |
 | Realtime UI | SSE (Server-Sent Events) from server | Live activity feed — server pushes events as they happen |
 | Server | Express + Node.js 20 + TypeScript | Single service: API + worker pipeline |
 | Ingestion | Helius Enhanced Webhooks | Filtered to the Guardrails program address |

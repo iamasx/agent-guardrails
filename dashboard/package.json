@@ -23,7 +23,8 @@
     "@solana/web3.js": "^1.95.0",
     "@coral-xyz/anchor": "^0.30.1",
     "@tanstack/react-query": "^5.50.0",
-    "recharts": "^2.12.0"
+    "recharts": "^2.12.0",
+    "zustand": "^4.5.0"
   },
   "devDependencies": {
     "typescript": "^5.5.0",
