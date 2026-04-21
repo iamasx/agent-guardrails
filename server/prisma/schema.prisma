@@ -1,0 +1,104 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Policy {
+  pubkey              String   @id
+  owner               String
+  agent               String
+  allowedPrograms     String[] @map("allowed_programs")
+  maxTxLamports       BigInt   @map("max_tx_lamports")
+  dailyBudgetLamports BigInt   @map("daily_budget_lamports")
+  sessionExpiry       DateTime @map("session_expiry")
+  isActive            Boolean  @default(true) @map("is_active")
+  squadsMultisig      String?  @map("squads_multisig")
+  escalationThreshold BigInt?  @map("escalation_threshold")
+  anomalyScore        Int      @default(0) @db.SmallInt @map("anomaly_score")
+  label               String?
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  guardedTxns GuardedTxn[]
+  incidents   Incident[]
+
+  @@index([owner])
+  @@map("policies")
+}
+
+model GuardedTxn {
+  id             String   @id @default(uuid())
+  policyPubkey   String   @map("policy_pubkey")
+  txnSig         String   @unique @map("txn_sig")
+  slot           BigInt
+  blockTime      DateTime @map("block_time")
+  targetProgram  String   @map("target_program")
+  amountLamports BigInt?  @map("amount_lamports")
+  status         String
+  rejectReason   String?  @map("reject_reason")
+  rawEvent       Json?    @map("raw_event")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  policy  Policy          @relation(fields: [policyPubkey], references: [pubkey])
+  verdict AnomalyVerdict?
+
+  @@index([policyPubkey, blockTime(sort: Desc)])
+  @@map("guarded_txns")
+}
+
+model AnomalyVerdict {
+  id               String   @id @default(uuid())
+  txnId            String   @unique @map("txn_id")
+  policyPubkey     String   @map("policy_pubkey")
+  verdict          String
+  confidence       Int      @db.SmallInt
+  reasoning        String
+  model            String
+  latencyMs        Int?     @map("latency_ms")
+  prefilterSkipped Boolean  @default(false) @map("prefilter_skipped")
+  promptTokens     Int?     @map("prompt_tokens")
+  completionTokens Int?     @map("completion_tokens")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  txn       GuardedTxn @relation(fields: [txnId], references: [id], onDelete: Cascade)
+  incidents Incident[]
+
+  @@index([policyPubkey, createdAt(sort: Desc)])
+  @@map("anomaly_verdicts")
+}
+
+model Incident {
+  id               String    @id @default(uuid())
+  policyPubkey     String    @map("policy_pubkey")
+  pausedAt         DateTime  @map("paused_at")
+  pausedBy         String    @map("paused_by")
+  reason           String
+  triggeringTxnSig String?   @map("triggering_txn_sig")
+  judgeVerdictId   String?   @map("judge_verdict_id")
+  fullReport       String?   @map("full_report")
+  resolvedAt       DateTime? @map("resolved_at")
+  resolution       String?
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  policy       Policy          @relation(fields: [policyPubkey], references: [pubkey])
+  judgeVerdict AnomalyVerdict? @relation(fields: [judgeVerdictId], references: [id])
+
+  @@index([policyPubkey, pausedAt(sort: Desc)])
+  @@map("incidents")
+}
+
+model AuthSession {
+  id           String    @id @default(uuid())
+  walletPubkey String    @map("wallet_pubkey")
+  nonce        String
+  signedAt     DateTime? @map("signed_at")
+  expiresAt    DateTime  @map("expires_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@map("auth_sessions")
+}

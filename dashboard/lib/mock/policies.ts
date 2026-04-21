@@ -1,5 +1,5 @@
 /**
- * Mock policies — mirrors Supabase `policies` table (docs/data-contracts.md §3)
+ * Mock policies — mirrors `policies` table (server/prisma/schema.prisma)
  *
  * 3 agents matching the demo narrative:
  * - Yield Bot (trader): active, healthy

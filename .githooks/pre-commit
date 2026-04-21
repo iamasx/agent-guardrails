@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Auto-sync SDK to worker and dashboard before committing.
+# Auto-sync SDK to server and dashboard before committing.
 # Only runs the sync if sdk/ or program/ files are staged.
 
 STAGED=$(git diff --cached --name-only)
@@ -9,6 +9,6 @@ STAGED=$(git diff --cached --name-only)
 if echo "$STAGED" | grep -qE '^(sdk/|program/)'; then
   echo "[pre-commit] sdk/ or program/ changed — syncing SDK to consumers..."
   bash "$(git rev-parse --show-toplevel)/scripts/sync-sdk.sh"
-  git add worker/src/sdk/ dashboard/lib/sdk/
+  git add server/src/sdk/ dashboard/lib/sdk/
   echo "[pre-commit] SDK synced and staged."
 fi

@@ -1,5 +1,5 @@
 /**
- * Mock anomaly_verdicts — mirrors Supabase `anomaly_verdicts` table (docs/data-contracts.md §3)
+ * Mock anomaly_verdicts — mirrors `anomaly_verdicts` table (server/prisma/schema.prisma)
  *
  * Narrative:
  * - Yield Bot + Staking Agent: all prefilter-skipped (routine txns)

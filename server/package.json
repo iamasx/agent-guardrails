@@ -1,5 +1,5 @@
 {
-  "name": "guardrails-worker",
+  "name": "guardrails-server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,11 @@
     "@anthropic-ai/sdk": "^0.30.0",
     "@coral-xyz/anchor": "^0.30.1",
     "@solana/web3.js": "^1.95.0",
-    "@supabase/supabase-js": "^2.45.0"
+    "express": "^4.21.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "jsonwebtoken": "^9.0.0",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

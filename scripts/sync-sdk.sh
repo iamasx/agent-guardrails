@@ -4,7 +4,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SDK_SRC="$REPO_ROOT/sdk"
 TARGETS=(
-  "$REPO_ROOT/worker/src/sdk"
+  "$REPO_ROOT/server/src/sdk"
   "$REPO_ROOT/dashboard/lib/sdk"
 )
 

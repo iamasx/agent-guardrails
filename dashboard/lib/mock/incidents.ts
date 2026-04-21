@@ -1,5 +1,5 @@
 /**
- * Mock incidents — mirrors Supabase `incidents` table (docs/data-contracts.md §3)
+ * Mock incidents — mirrors `incidents` table (server/prisma/schema.prisma)
  *
  * One incident: Alpha Scanner paused by the monitoring worker after
  * Claude Haiku detected a draining sequence.

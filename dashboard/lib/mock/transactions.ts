@@ -1,5 +1,5 @@
 /**
- * Mock guarded_txns — mirrors Supabase `guarded_txns` table (docs/data-contracts.md §3)
+ * Mock guarded_txns — mirrors `guarded_txns` table (server/prisma/schema.prisma)
  *
  * Narrative:
  * - Yield Bot: 8 normal Jupiter swaps over the day
