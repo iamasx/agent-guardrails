@@ -31,6 +31,16 @@ Next.js 14 App Router. Standalone. Deployed on Vercel. Dark mode default.
 - **Historical:** Supabase query with pagination
 - **Live:** Supabase Realtime WS on `guarded_txns` + `incidents`, invalidates TanStack caches
 
+## Mock data (for building UI without backend)
+
+`lib/mock/` contains fixture data matching the Supabase schema exactly (types + data from `docs/data-contracts.md`). Use `import { POLICIES, TRANSACTIONS, VERDICTS, INCIDENTS } from "@/lib/mock"` while building components. Swap for real Supabase queries when the backend is ready.
+
+- `policies.ts` — 3 agents: Yield Bot (active), Staking Agent (active), Alpha Scanner (paused)
+- `transactions.ts` — 20 txns: 8 normal swaps + 4 stakes + 3 normal + 5 burst (attack sequence)
+- `verdicts.ts` — 7 verdicts: prefilter-skipped allows + FLAG + FLAG + PAUSE chain
+- `incidents.ts` — 1 incident with full Opus-generated postmortem report
+- `index.ts` — barrel export with types
+
 ## Component build order (section 6.2)
 
 1. WalletProvider + SiwsProvider (root layout)
