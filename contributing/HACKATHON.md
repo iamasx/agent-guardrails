@@ -8,9 +8,9 @@ Quick workflow for the Solana Frontier hackathon. Replace with the full [CONTRIB
 
 | Person | Area | Branch(es) | Directory |
 |--------|------|-----------|-----------|
-| Person 1 | Program | `program`, `program:tests` | `program/` |
-| Person 2 | Server | `server:worker`, `server:api`, `server:prisma` | `server/` |
-| Person 3 | Dashboard | `dashboard`, `dashboard:demo` | `dashboard/` |
+| **Ronin** | Program | `program`, `program:tests` | `program/` |
+| **Spectre** | Server | `server:worker`, `server:api`, `server:prisma` | `server/` |
+| **Neon** | Dashboard | `dashboard`, `dashboard:demo` | `dashboard/` |
 
 No overlap — each person owns their directory.
 
@@ -110,7 +110,7 @@ git checkout -b server:api
 
 ## Branch Guide
 
-### Person 1 — Program
+### Ronin — Program
 
 ```bash
 # Branch: program
@@ -131,7 +131,7 @@ bash scripts/sync-sdk.sh
 git add sdk/ server/src/sdk/ dashboard/lib/sdk/
 git commit -m "chore: sync SDK after anchor build"
 git push origin program
-# PR to upstream — Person 2 and 3 will pull to get new IDL
+# PR to upstream — Spectre and 3 will pull to get new IDL
 ```
 
 Test branch (if separating tests):
@@ -141,7 +141,7 @@ git checkout -b program:tests
 # anchor test --skip-local-validator --skip-deploy
 ```
 
-### Person 2 — Server
+### Spectre — Server
 
 ```bash
 # Branch: server:worker
@@ -175,7 +175,7 @@ git checkout -b server:prisma
 # First migration from schema.prisma
 ```
 
-### Person 3 — Dashboard
+### Neon — Dashboard
 
 ```bash
 # Branch: dashboard
@@ -204,29 +204,29 @@ git checkout -b dashboard:demo
 
 ## Coordination Points
 
-### 1. SDK sync (Person 1 → Person 2 + 3)
+### 1. SDK sync (Ronin → Spectre + 3)
 
-When Person 1 pushes program changes with a new IDL:
+When Ronin pushes program changes with a new IDL:
 
 ```
-Person 1: anchor build → sync-sdk.sh → commit → push → PR → merge to upstream
-Person 2: git fetch upstream && git merge upstream/main (gets new IDL)
-Person 3: git fetch upstream && git merge upstream/main (gets new IDL)
+Ronin: anchor build → sync-sdk.sh → commit → push → PR → merge to upstream
+Spectre: git fetch upstream && git merge upstream/main (gets new IDL)
+Neon: git fetch upstream && git merge upstream/main (gets new IDL)
 ```
 
 **Don't start server or dashboard implementation until the first SDK sync is merged.**
 
-### 2. API contract (Person 2 ↔ Person 3)
+### 2. API contract (Spectre ↔ Neon)
 
 Already defined in `docs/data-contracts.md`:
 - §3: Prisma schema (what the API returns)
 - §5: SSE event payloads (what the dashboard receives)
 
-If Person 2 changes the API response shape, update `docs/data-contracts.md` and tell Person 3.
+If Spectre changes the API response shape, update `docs/data-contracts.md` and tell Neon.
 
-### 3. Prisma migration (Person 2 → upstream)
+### 3. Prisma migration (Spectre → upstream)
 
-Person 2 creates the first migration early — Person 3 needs the schema to validate mock data types:
+Spectre creates the first migration early — Neon needs the schema to validate mock data types:
 
 ```bash
 cd server
@@ -279,7 +279,7 @@ cd dashboard && npm run dev     # http://localhost:3000
 
 ## Timeline Targets
 
-| Week | Person 1 (Program) | Person 2 (Server) | Person 3 (Dashboard) |
+| Week | Ronin (Program) | Spectre (Server) | Neon (Dashboard) |
 |------|--------------------|--------------------|---------------------|
 | 1 | Account structs, init/update/guarded_execute, tests | Express skeleton, Prisma migration, webhook + ingest | Scaffold, layout, wallet provider, API client, SSE hook |
 | 2 | SpendTracker, pause/resume, Swig, Squads | Prefilter, judge, executor, reporter | PolicyCard, agents pages, CreatePolicyWizard |
