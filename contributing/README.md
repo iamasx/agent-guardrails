@@ -82,6 +82,20 @@ docs/                          ← Architecture, data contracts, walkthrough, et
 
 All generated context files (`.cursorrules`, `AGENTS.md`, `copilot-instructions.md`) point to these source files rather than duplicating their content. This keeps them lightweight and always in sync.
 
+## These files are gitignored
+
+Generated context files are personal — they're in `.gitignore` and won't be committed:
+
+```
+.cursorrules          ← Cursor
+.cursor/              ← Cursor directory-scoped rules
+AGENTS.md             ← Codex
+.github/copilot-instructions.md  ← VS Code (already in .github/)
+.vscode/              ← VS Code settings (already gitignored)
+```
+
+Each contributor runs their own setup. The source of truth stays in `CLAUDE.md` and `IMPLEMENTATION.md` files (which are committed).
+
 ## Keeping Context Updated
 
 If `CLAUDE.md` or `IMPLEMENTATION.md` files change, the generated context files don't auto-update. Re-run your setup script or re-generate manually.

@@ -22,6 +22,11 @@ test-ledger/
 *.swp
 *.swo
 
+# Generated AI tool context (per-user, not committed)
+.cursorrules
+.cursor/
+AGENTS.md
+
 # OS
 .DS_Store
 Thumbs.db
