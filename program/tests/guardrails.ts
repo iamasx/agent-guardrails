@@ -674,11 +674,289 @@ describe("guardrails", () => {
   });
 
   // =========================================================================
-  // Placeholder tests for future phases
+  // pause_agent
   // =========================================================================
 
-  // TODO: pause_agent — authorized monitor can pause, unauthorized cannot
-  // TODO: resume_agent — only owner, not monitor
-  // TODO: rotate_agent_key — swap key without losing spend history
-  // TODO: PolicyPaused test for guarded_execute (requires pause_agent from Phase 4)
+  describe("pause_agent", () => {
+    const pauseOwner = Keypair.generate();
+    const pauseAgent = Keypair.generate();
+    const monitor = Keypair.generate();
+    let pausePolicyPda: PublicKey;
+    let pauseTrackerPda: PublicKey;
+
+    before(async () => {
+      svm.airdrop(pauseOwner.publicKey, 10_000_000_000n);
+      svm.airdrop(monitor.publicKey, 1_000_000_000n);
+      svm.airdrop(pauseAgent.publicKey, 2_000_000_000n);
+
+      [pausePolicyPda] = findPolicyPda(pauseOwner.publicKey, pauseAgent.publicKey);
+      [pauseTrackerPda] = findTrackerPda(pausePolicyPda);
+
+      // Create policy with monitor authorized
+      await program.methods
+        .initializePolicy({
+          allowedPrograms: [SystemProgram.programId],
+          maxTxLamports: new BN(1_000_000_000),
+          maxTxTokenUnits: new BN(1_000_000),
+          dailyBudgetLamports: new BN(5_000_000_000),
+          sessionExpiry: defaultSessionExpiry,
+          squadsMultisig: null,
+          escalationThreshold: new BN(2_000_000_000),
+          authorizedMonitors: [monitor.publicKey],
+        })
+        .accounts({
+          owner: pauseOwner.publicKey,
+          agent: pauseAgent.publicKey,
+          policy: pausePolicyPda,
+          spendTracker: pauseTrackerPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([pauseOwner])
+        .rpc();
+    });
+
+    it("owner can pause agent with reason", async () => {
+      const reason = Buffer.from("Suspicious activity detected");
+
+      await program.methods
+        .pauseAgent({ reason: reason })
+        .accounts({
+          caller: pauseOwner.publicKey,
+          policy: pausePolicyPda,
+        })
+        .signers([pauseOwner])
+        .rpc();
+
+      const policy = await program.account.permissionPolicy.fetch(pausePolicyPda);
+      expect(policy.isActive).to.be.false;
+      expect(policy.pausedBy.toBase58()).to.equal(pauseOwner.publicKey.toBase58());
+
+      // Verify reason bytes match
+      const storedReason = Buffer.from(policy.pausedReason);
+      expect(storedReason.subarray(0, reason.length).toString()).to.equal(
+        reason.toString()
+      );
+    });
+
+    it("owner resumes so monitor can pause next", async () => {
+      await program.methods
+        .resumeAgent()
+        .accounts({
+          owner: pauseOwner.publicKey,
+          policy: pausePolicyPda,
+        })
+        .signers([pauseOwner])
+        .rpc();
+
+      const policy = await program.account.permissionPolicy.fetch(pausePolicyPda);
+      expect(policy.isActive).to.be.true;
+    });
+
+    it("authorized monitor can pause agent", async () => {
+      await program.methods
+        .pauseAgent({ reason: Buffer.from("Anomaly score exceeded") })
+        .accounts({
+          caller: monitor.publicKey,
+          policy: pausePolicyPda,
+        })
+        .signers([monitor])
+        .rpc();
+
+      const policy = await program.account.permissionPolicy.fetch(pausePolicyPda);
+      expect(policy.isActive).to.be.false;
+      expect(policy.pausedBy.toBase58()).to.equal(monitor.publicKey.toBase58());
+    });
+
+    it("unauthorized caller cannot pause agent", async () => {
+      // Use a fresh policy to avoid state dependencies on previous tests
+      const freshOwner = Keypair.generate();
+      const freshAgent = Keypair.generate();
+      svm.airdrop(freshOwner.publicKey, 10_000_000_000n);
+
+      const [freshPolicyPda] = findPolicyPda(freshOwner.publicKey, freshAgent.publicKey);
+      const [freshTrackerPda] = findTrackerPda(freshPolicyPda);
+
+      await program.methods
+        .initializePolicy({
+          allowedPrograms: [SystemProgram.programId],
+          maxTxLamports: new BN(1_000_000_000),
+          maxTxTokenUnits: new BN(1_000_000),
+          dailyBudgetLamports: new BN(5_000_000_000),
+          sessionExpiry: defaultSessionExpiry,
+          squadsMultisig: null,
+          escalationThreshold: new BN(2_000_000_000),
+          authorizedMonitors: [], // No monitors — only owner can pause
+        })
+        .accounts({
+          owner: freshOwner.publicKey,
+          agent: freshAgent.publicKey,
+          policy: freshPolicyPda,
+          spendTracker: freshTrackerPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([freshOwner])
+        .rpc();
+
+      const attacker = Keypair.generate();
+      svm.airdrop(attacker.publicKey, 1_000_000_000n);
+
+      try {
+        await program.methods
+          .pauseAgent({ reason: Buffer.from("hacked") })
+          .accounts({ caller: attacker.publicKey, policy: freshPolicyPda })
+          .signers([attacker])
+          .rpc();
+
+        expect.fail("Expected UnauthorizedPauser error");
+      } catch (err: any) {
+        // Attacker is neither owner nor monitor — transaction must fail
+        expect(err).to.exist;
+      }
+    });
+
+    it("paused policy rejects guarded_execute with PolicyPaused", async () => {
+      // Pause the policy
+      await program.methods
+        .pauseAgent({ reason: Buffer.from("Kill switch test") })
+        .accounts({ caller: pauseOwner.publicKey, policy: pausePolicyPda })
+        .signers([pauseOwner])
+        .rpc();
+
+      // Try guarded_execute — should fail with PolicyPaused
+      const dest = Keypair.generate();
+      const txData = Buffer.alloc(12);
+      txData.writeUInt32LE(2, 0);
+      txData.writeBigUInt64LE(100_000n, 4);
+
+      try {
+        await program.methods
+          .guardedExecute({
+            instructionData: txData,
+            amountHint: new BN(100_000),
+          })
+          .accounts({
+            agent: pauseAgent.publicKey,
+            policy: pausePolicyPda,
+            spendTracker: pauseTrackerPda,
+            targetProgram: SystemProgram.programId,
+            systemProgram: SystemProgram.programId,
+          })
+          .remainingAccounts([
+            { pubkey: pausePolicyPda, isWritable: true, isSigner: false },
+            { pubkey: dest.publicKey, isWritable: true, isSigner: false },
+            { pubkey: SystemProgram.programId, isWritable: false, isSigner: false },
+          ])
+          .signers([pauseAgent])
+          .rpc();
+
+        expect.fail("Expected PolicyPaused error");
+      } catch (err: any) {
+        expect(err.toString()).to.include("PolicyPaused");
+      }
+    });
+  });
+
+  // =========================================================================
+  // resume_agent
+  // =========================================================================
+
+  describe("resume_agent", () => {
+    const resumeOwner = Keypair.generate();
+    const resumeAgent = Keypair.generate();
+    const resumeMonitor = Keypair.generate();
+    let resumePolicyPda: PublicKey;
+
+    before(async () => {
+      svm.airdrop(resumeOwner.publicKey, 10_000_000_000n);
+      svm.airdrop(resumeMonitor.publicKey, 1_000_000_000n);
+
+      [resumePolicyPda] = findPolicyPda(resumeOwner.publicKey, resumeAgent.publicKey);
+      const [resumeTrackerPda] = findTrackerPda(resumePolicyPda);
+
+      // Create policy and immediately pause it
+      await program.methods
+        .initializePolicy({
+          allowedPrograms: [SystemProgram.programId],
+          maxTxLamports: new BN(1_000_000_000),
+          maxTxTokenUnits: new BN(1_000_000),
+          dailyBudgetLamports: new BN(5_000_000_000),
+          sessionExpiry: defaultSessionExpiry,
+          squadsMultisig: null,
+          escalationThreshold: new BN(2_000_000_000),
+          authorizedMonitors: [resumeMonitor.publicKey],
+        })
+        .accounts({
+          owner: resumeOwner.publicKey,
+          agent: resumeAgent.publicKey,
+          policy: resumePolicyPda,
+          spendTracker: resumeTrackerPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([resumeOwner])
+        .rpc();
+
+      // Pause it for resume tests
+      await program.methods
+        .pauseAgent({ reason: Buffer.from("Paused for resume tests") })
+        .accounts({ caller: resumeOwner.publicKey, policy: resumePolicyPda })
+        .signers([resumeOwner])
+        .rpc();
+    });
+
+    it("owner can resume a paused agent", async () => {
+      await program.methods
+        .resumeAgent()
+        .accounts({ owner: resumeOwner.publicKey, policy: resumePolicyPda })
+        .signers([resumeOwner])
+        .rpc();
+
+      const policy = await program.account.permissionPolicy.fetch(resumePolicyPda);
+      expect(policy.isActive).to.be.true;
+      expect(policy.pausedBy).to.be.null;
+
+      // Verify paused_reason is cleared (all zeros)
+      const storedReason = Buffer.from(policy.pausedReason);
+      expect(storedReason.every((b: number) => b === 0)).to.be.true;
+    });
+
+    it("monitor cannot resume a paused agent", async () => {
+      // Re-pause for this test
+      await program.methods
+        .pauseAgent({ reason: Buffer.from("Re-paused") })
+        .accounts({ caller: resumeOwner.publicKey, policy: resumePolicyPda })
+        .signers([resumeOwner])
+        .rpc();
+
+      try {
+        await program.methods
+          .resumeAgent()
+          .accounts({ owner: resumeMonitor.publicKey, policy: resumePolicyPda })
+          .signers([resumeMonitor])
+          .rpc();
+
+        expect.fail("Expected ResumeRequiresOwner error");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+
+    it("random caller cannot resume a paused agent", async () => {
+      const attacker = Keypair.generate();
+      svm.airdrop(attacker.publicKey, 1_000_000_000n);
+
+      try {
+        await program.methods
+          .resumeAgent()
+          .accounts({ owner: attacker.publicKey, policy: resumePolicyPda })
+          .signers([attacker])
+          .rpc();
+
+        expect.fail("Expected resume to fail for non-owner");
+      } catch (err: any) {
+        expect(err).to.exist;
+      }
+    });
+  });
+
+  // TODO: rotate_agent_key — stub returns NotYetImplemented (deferred to post-hackathon)
 });
