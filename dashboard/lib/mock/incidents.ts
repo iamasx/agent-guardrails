@@ -1,8 +1,12 @@
 /**
  * Mock incidents — mirrors `incidents` table (server/prisma/schema.prisma)
  *
- * One incident: Alpha Scanner paused by the monitoring worker after
- * Claude Haiku detected a draining sequence.
+ * Two incidents:
+ * 1. Alpha Scanner paused by AI judge after draining sequence (full Opus report)
+ * 2. An older resolved incident (manually paused by owner, resolved next day)
+ *
+ * Covers: null triggeringTxnSig, null judgeVerdictId, null fullReport,
+ * resolved incident with resolution text.
  */
 
 export interface Incident {
@@ -11,8 +15,8 @@ export interface Incident {
   pausedAt: string;
   pausedBy: string;
   reason: string;
-  triggeringTxnSig: string;
-  judgeVerdictId: string;
+  triggeringTxnSig: string | null;
+  judgeVerdictId: string | null;
   fullReport: string | null;
   resolvedAt: string | null;
   resolution: string | null;
@@ -73,5 +77,19 @@ The agent session key appears to have been compromised or the agent's decision-m
     resolvedAt: null,
     resolution: null,
     createdAt: "2026-04-21T15:00:07Z",
+  },
+  // Older resolved incident — manually paused by owner, no judge involved
+  {
+    id: "e5f6a7b8-0002-4000-8000-000000000001",
+    policyPubkey: "8dHEsGNtQ2obTBbh8mxmXJ3A6stUdmKz1KfLFbm2WDNG",
+    pausedAt: "2026-04-18T11:30:00Z",
+    pausedBy: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU", // owner (Alice)
+    reason: "Manual pause for policy review — adjusting daily limits",
+    triggeringTxnSig: null,           // no specific txn triggered this
+    judgeVerdictId: null,             // no judge involved — manual pause
+    fullReport: null,                 // no Opus report for manual pauses
+    resolvedAt: "2026-04-19T09:00:00Z",
+    resolution: "Policy updated: daily budget increased from 50 SOL to 100 SOL. Agent resumed after review.",
+    createdAt: "2026-04-18T11:30:01Z",
   },
 ];

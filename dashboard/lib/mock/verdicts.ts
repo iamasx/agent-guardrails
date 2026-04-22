@@ -5,6 +5,7 @@
  * - Yield Bot + Staking Agent: all prefilter-skipped (routine txns)
  * - Alpha Scanner normal txns: prefilter-skipped
  * - Alpha Scanner burst: FLAG on first suspicious, then PAUSE
+ * - Treasury Manager: one normal allow, one prefilter flag (large amount)
  */
 
 export interface AnomalyVerdict {
@@ -22,14 +23,17 @@ export interface AnomalyVerdict {
   createdAt: string;
 }
 
+const YIELD_BOT = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+const STAKING_AGENT = "8dHEsGNtQ2obTBbh8mxmXJ3A6stUdmKz1KfLFbm2WDNG";
 const ALPHA_SCANNER = "CsZ5LZkDS7h9TDKjt4zMJSiP8bZzYLkWsa4bGMQKDqeE";
+const TREASURY = "F7nQ8rT5sU6vW7xY8zA9bC1dE2fG3hJ4kL5mN6pQ7rS";
 
 export const VERDICTS: AnomalyVerdict[] = [
-  // === Yield Bot — all prefilter-skipped (routine) ===
+  // === Yield Bot — prefilter-skipped (routine) ===
   {
     id: "d4e5f6a7-0001-4000-8000-000000000001",
     txnId: "a1b2c3d4-0001-4000-8000-000000000001",
-    policyPubkey: "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    policyPubkey: YIELD_BOT,
     verdict: "allow",
     confidence: 95,
     reasoning: "Routine Jupiter swap within normal parameters",
@@ -40,10 +44,11 @@ export const VERDICTS: AnomalyVerdict[] = [
     completionTokens: null,
     createdAt: "2026-04-21T09:00:13Z",
   },
+  // Yield Bot — one Claude-evaluated (amount > 50% of cap)
   {
     id: "d4e5f6a7-0001-4000-8000-000000000002",
     txnId: "a1b2c3d4-0001-4000-8000-000000000004",
-    policyPubkey: "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    policyPubkey: YIELD_BOT,
     verdict: "allow",
     confidence: 90,
     reasoning: "Jupiter swap at 62% of cap, within historical range",
@@ -55,11 +60,11 @@ export const VERDICTS: AnomalyVerdict[] = [
     createdAt: "2026-04-21T11:45:02Z",
   },
 
-  // === Staking Agent — all prefilter-skipped ===
+  // === Staking Agent — prefilter-skipped ===
   {
     id: "d4e5f6a7-0002-4000-8000-000000000001",
     txnId: "b2c3d4e5-0001-4000-8000-000000000001",
-    policyPubkey: "8dHEsGNtQ2obTBbh8mxmXJ3A6stUdmKz1KfLFbm2WDNG",
+    policyPubkey: STAKING_AGENT,
     verdict: "allow",
     confidence: 97,
     reasoning: "Routine Marinade stake within normal parameters",
@@ -69,6 +74,20 @@ export const VERDICTS: AnomalyVerdict[] = [
     promptTokens: null,
     completionTokens: null,
     createdAt: "2026-04-21T09:05:01Z",
+  },
+  {
+    id: "d4e5f6a7-0002-4000-8000-000000000002",
+    txnId: "b2c3d4e5-0001-4000-8000-000000000002",
+    policyPubkey: STAKING_AGENT,
+    verdict: "allow",
+    confidence: 88,
+    reasoning: "Marinade stake at 80% of cap, elevated but within historical range for this agent",
+    model: "claude-haiku-4-5-20251001",
+    latencyMs: 1420,
+    prefilterSkipped: false,
+    promptTokens: 502,
+    completionTokens: 71,
+    createdAt: "2026-04-21T10:45:02Z",
   },
 
   // === Alpha Scanner — normal, then FLAG, then PAUSE ===
@@ -130,5 +149,21 @@ export const VERDICTS: AnomalyVerdict[] = [
     promptTokens: 571,
     completionTokens: 92,
     createdAt: "2026-04-21T15:00:06Z",
+  },
+
+  // === Treasury Manager — normal + large amount flag ===
+  {
+    id: "d4e5f6a7-0004-4000-8000-000000000001",
+    txnId: "d4e5f6a7-1001-4000-8000-000000000001",
+    policyPubkey: TREASURY,
+    verdict: "allow",
+    confidence: 85,
+    reasoning: "Jupiter swap at 30% of cap, consistent with treasury operations",
+    model: "claude-haiku-4-5-20251001",
+    latencyMs: 1380,
+    prefilterSkipped: false,
+    promptTokens: 510,
+    completionTokens: 68,
+    createdAt: "2026-04-21T12:30:02Z",
   },
 ];

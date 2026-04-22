@@ -5,12 +5,17 @@
  * Use this for building the dashboard UI without real backend.
  * Swap for real server API calls when ready.
  *
+ * BigInt fields (lamports, slot) are serialized as strings — matches
+ * what the server API returns via JSON.
+ *
  * Narrative:
  * - Yield Bot (trader): 8 normal Jupiter swaps, all healthy
  * - Staking Agent (staker): 4 normal Marinade operations, all healthy
  * - Alpha Scanner (attacker): 3 normal txns, then 4-txn burst to unknown
  *   program with escalating amounts → FLAG → FLAG → PAUSE
- * - 1 incident with full Opus-generated postmortem report
+ * - Treasury Manager: 2 large txns (one escalated to Squads multisig)
+ * - Test Agent: expired session, no label
+ * - 2 incidents: one AI-triggered with Opus report, one manual (resolved)
  */
 
 export { POLICIES, PROGRAM_LABELS, MONITOR } from "./policies";
