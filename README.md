@@ -244,7 +244,7 @@ The dashboard shows normal activity streaming in via SSE, then the attack: FLAG 
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide: workflow, coding standards, PR process, and testing.
+See [contributing/CONTRIBUTING.md](contributing/CONTRIBUTING.md) for the full guide: workflow, coding standards, PR process, and testing.
 
 **AI tool setup** — this repo is built with Claude Code. For other tools:
 - **Cursor** — `bash contributing/scripts/setup-cursor.sh`
