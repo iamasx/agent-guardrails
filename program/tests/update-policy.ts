@@ -1,0 +1,165 @@
+// Tests for the update_policy instruction (field updates, access control, validation).
+
+// Standard deps imported directly from packages
+import { BN } from "@coral-xyz/anchor";
+import { Keypair, SystemProgram } from "@solana/web3.js";
+import { expect } from "chai";
+
+// Setup + helpers from helpers.ts
+import { svm, program, findPolicyPda, findTrackerPda, defaultSessionExpiry } from "./helpers.js";
+
+// Constants formerly exported from helpers — defined locally
+const defaultAllowedPrograms = [SystemProgram.programId];
+const defaultMaxTxLamports = new BN(1_000_000_000);
+const defaultMaxTxTokenUnits = new BN(1_000_000);
+const defaultDailyBudgetLamports = new BN(5_000_000_000);
+const defaultEscalationThreshold = new BN(2_000_000_000);
+
+describe("update_policy", () => {
+  const owner = Keypair.generate();
+  const agent = Keypair.generate();
+
+  before(async () => {
+    svm.airdrop(owner.publicKey, 10_000_000_000n);
+
+    const [policyPda] = findPolicyPda(owner.publicKey, agent.publicKey);
+    const [trackerPda] = findTrackerPda(policyPda);
+
+    // Create the policy that update tests will operate on
+    await program.methods
+      .initializePolicy({
+        allowedPrograms: defaultAllowedPrograms,
+        maxTxLamports: defaultMaxTxLamports,
+        maxTxTokenUnits: defaultMaxTxTokenUnits,
+        dailyBudgetLamports: defaultDailyBudgetLamports,
+        sessionExpiry: defaultSessionExpiry,
+        squadsMultisig: null,
+        escalationThreshold: defaultEscalationThreshold,
+        authorizedMonitors: [],
+      })
+      .accounts({
+        owner: owner.publicKey,
+        agent: agent.publicKey,
+        policy: policyPda,
+        spendTracker: trackerPda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([owner])
+      .rpc();
+  });
+
+  it("owner can update limits and verify changes", async () => {
+    const [policyPda] = findPolicyPda(owner.publicKey, agent.publicKey);
+
+    const newProgram = Keypair.generate().publicKey;
+    const newMonitor = Keypair.generate().publicKey;
+
+    await program.methods
+      .updatePolicy({
+        allowedPrograms: [SystemProgram.programId, newProgram],
+        maxTxLamports: new BN(2_000_000_000), // 2 SOL
+        maxTxTokenUnits: new BN(2_000_000),
+        dailyBudgetLamports: new BN(10_000_000_000), // 10 SOL
+        sessionExpiry: null, // unchanged
+        squadsMultisig: null, // unchanged
+        escalationThreshold: new BN(5_000_000_000), // 5 SOL
+        authorizedMonitors: [newMonitor],
+        anomalyScore: 42,
+      })
+      .accounts({
+        owner: owner.publicKey,
+        policy: policyPda,
+      })
+      .signers([owner])
+      .rpc();
+
+    const policy = await program.account.permissionPolicy.fetch(policyPda);
+
+    // Updated fields
+    expect(policy.allowedPrograms).to.have.lengthOf(2);
+    expect(policy.allowedPrograms[1].toBase58()).to.equal(
+      newProgram.toBase58()
+    );
+    expect(policy.maxTxLamports.toNumber()).to.equal(2_000_000_000);
+    expect(policy.maxTxTokenUnits.toNumber()).to.equal(2_000_000);
+    expect(policy.dailyBudgetLamports.toNumber()).to.equal(10_000_000_000);
+    expect(policy.escalationThreshold.toNumber()).to.equal(5_000_000_000);
+    expect(policy.authorizedMonitors).to.have.lengthOf(1);
+    expect(policy.authorizedMonitors[0].toBase58()).to.equal(
+      newMonitor.toBase58()
+    );
+    expect(policy.anomalyScore).to.equal(42);
+
+    // Unchanged fields (passed as null -> None -> no update)
+    expect(policy.sessionExpiry.toNumber()).to.equal(
+      defaultSessionExpiry.toNumber()
+    );
+  });
+
+  it("non-owner cannot update policy", async () => {
+    const attacker = Keypair.generate();
+    svm.airdrop(attacker.publicKey, 1_000_000_000n); // 1 SOL for fees
+
+    const [policyPda] = findPolicyPda(owner.publicKey, agent.publicKey);
+
+    try {
+      await program.methods
+        .updatePolicy({
+          allowedPrograms: null,
+          maxTxLamports: new BN(999_999_999),
+          maxTxTokenUnits: null,
+          dailyBudgetLamports: null,
+          sessionExpiry: null,
+          squadsMultisig: null,
+          escalationThreshold: null,
+          authorizedMonitors: null,
+          anomalyScore: null,
+        })
+        .accounts({
+          owner: attacker.publicKey,
+          policy: policyPda,
+        })
+        .signers([attacker])
+        .rpc();
+
+      expect.fail("Expected non-owner update to fail");
+    } catch (err: any) {
+      // has_one constraint rejects because attacker.key != policy.owner
+      expect(err).to.exist;
+    }
+  });
+
+  it("fails when updating allowed_programs above max (10)", async () => {
+    const [policyPda] = findPolicyPda(owner.publicKey, agent.publicKey);
+
+    // 11 programs exceeds MAX_ALLOWED_PROGRAMS = 10
+    const tooManyPrograms = Array.from({ length: 11 }, () =>
+      Keypair.generate().publicKey
+    );
+
+    try {
+      await program.methods
+        .updatePolicy({
+          allowedPrograms: tooManyPrograms,
+          maxTxLamports: null,
+          maxTxTokenUnits: null,
+          dailyBudgetLamports: null,
+          sessionExpiry: null,
+          squadsMultisig: null,
+          escalationThreshold: null,
+          authorizedMonitors: null,
+          anomalyScore: null,
+        })
+        .accounts({
+          owner: owner.publicKey,
+          policy: policyPda,
+        })
+        .signers([owner])
+        .rpc();
+
+      expect.fail("Expected TooManyAllowedPrograms error");
+    } catch (err: any) {
+      expect(err.toString()).to.include("TooManyAllowedPrograms");
+    }
+  });
+});
