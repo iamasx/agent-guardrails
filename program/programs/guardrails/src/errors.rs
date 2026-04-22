@@ -1,3 +1,9 @@
+//! Error codes for the Guardrails program.
+//!
+//! Each variant maps to a unique error code (starting at 6000 per Anchor
+//! convention). These are returned via `require!()` in instruction handlers
+//! and decoded by the SDK and server using the IDL.
+
 use anchor_lang::prelude::*;
 
 #[error_code]

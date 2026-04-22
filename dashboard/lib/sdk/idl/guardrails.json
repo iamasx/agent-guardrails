@@ -113,6 +113,60 @@
       "args": []
     }
   ],
+  "events": [
+    {
+      "name": "AgentPaused",
+      "discriminator": [
+        228,
+        35,
+        167,
+        28,
+        96,
+        5,
+        210,
+        82
+      ]
+    },
+    {
+      "name": "EscalatedToSquads",
+      "discriminator": [
+        105,
+        111,
+        138,
+        170,
+        151,
+        156,
+        38,
+        229
+      ]
+    },
+    {
+      "name": "GuardedTxnExecuted",
+      "discriminator": [
+        191,
+        230,
+        66,
+        235,
+        154,
+        107,
+        129,
+        138
+      ]
+    },
+    {
+      "name": "GuardedTxnRejected",
+      "discriminator": [
+        216,
+        23,
+        222,
+        194,
+        202,
+        3,
+        80,
+        39
+      ]
+    }
+  ],
   "errors": [
     {
       "code": 6000,
@@ -153,6 +207,197 @@
       "code": 6007,
       "name": "EscalatedToMultisig",
       "msg": "Escalation required — proposal created on Squads"
+    }
+  ],
+  "types": [
+    {
+      "name": "AgentPaused",
+      "docs": [
+        "Emitted when `pause_agent` is called by the owner or an authorized monitor.",
+        "The server uses this to create an incident and notify the dashboard via SSE."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "policy",
+            "docs": [
+              "The PermissionPolicy PDA that was paused."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "paused_by",
+            "docs": [
+              "The pubkey of whoever triggered the pause (owner or monitor)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "reason",
+            "docs": [
+              "The pause reason, copied from the instruction input.",
+              "Fixed 64-byte array, padded with trailing zeros."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Unix timestamp from the Solana clock."
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EscalatedToSquads",
+      "docs": [
+        "Emitted when a transaction is escalated to Squads multisig for approval",
+        "instead of being executed directly.",
+        "",
+        "In MVP, the on-chain program returns `EscalatedToMultisig` error and the",
+        "server handles proposal creation off-chain. This event is defined for IDL",
+        "completeness and future on-chain Squads CPI support."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "policy",
+            "docs": [
+              "The PermissionPolicy PDA that triggered the escalation."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "squads_proposal",
+            "docs": [
+              "The Squads proposal address. In MVP this is Pubkey::default() because",
+              "the proposal is created off-chain by the server after catching the error."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "docs": [
+              "The transaction amount that exceeded `escalation_threshold`."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GuardedTxnExecuted",
+      "docs": [
+        "Emitted after a successful `guarded_execute` CPI.",
+        "The server ingests this to record the transaction and feed it to the",
+        "Claude judge for anomaly scoring."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "policy",
+            "docs": [
+              "The PermissionPolicy PDA that governed this transaction."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "agent",
+            "docs": [
+              "The agent session key that initiated the transaction."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "target_program",
+            "docs": [
+              "The program that was invoked via CPI."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "docs": [
+              "Lamports transferred — the verified amount parsed from instruction data,",
+              "not the agent-supplied `amount_hint`."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Unix timestamp from the Solana clock at execution time."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "txn_sig",
+            "docs": [
+              "Base58-encoded transaction signature. String is fine in events since",
+              "they are log data, not account data."
+            ],
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GuardedTxnRejected",
+      "docs": [
+        "Emitted when a `guarded_execute` CPI fails (target program returns error).",
+        "",
+        "Note: This is for CPI failures, not validation rejections. Validation",
+        "failures (paused, expired, wrong program, over limit) cause the entire",
+        "transaction to revert with an error code — no event is emitted."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "policy",
+            "docs": [
+              "The PermissionPolicy PDA for this transaction."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "agent",
+            "docs": [
+              "The agent session key that attempted the transaction."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "reason",
+            "docs": [
+              "Rejection reason as a numeric code:",
+              "0 = PolicyPaused",
+              "1 = SessionExpired",
+              "2 = ProgramNotWhitelisted",
+              "3 = AmountExceedsLimit",
+              "4 = DailyBudgetExceeded"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Unix timestamp from the Solana clock."
+            ],
+            "type": "i64"
+          }
+        ]
+      }
     }
   ]
 }
