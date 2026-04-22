@@ -131,6 +131,9 @@ impl PermissionPolicy {
     /// the budget. The actual reset (zeroing counters, updating timestamps)
     /// is performed by the `guarded_execute` instruction handler.
     pub fn is_budget_window_expired(&self, current_timestamp: i64) -> bool {
-        current_timestamp > self.last_reset_ts + SECONDS_PER_DAY
+        self.last_reset_ts
+            .checked_add(SECONDS_PER_DAY)
+            .map(|expiry| current_timestamp > expiry)
+            .unwrap_or(true)
     }
 }

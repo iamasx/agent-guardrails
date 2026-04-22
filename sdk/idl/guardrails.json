@@ -1,5 +1,5 @@
 {
-  "address": "11111111111111111111111111111111",
+  "address": "ENzC6oJhL2bVELvRCZqN4JizFNPTCTfMR5Gz1YJb4u76",
   "metadata": {
     "name": "guardrails",
     "version": "0.1.0",
@@ -39,6 +39,10 @@
     },
     {
       "name": "initialize_policy",
+      "docs": [
+        "Creates a PermissionPolicy PDA and its companion SpendTracker PDA.",
+        "Called once per (owner, agent) pair. Owner signs and pays rent."
+      ],
       "discriminator": [
         9,
         186,
@@ -49,8 +53,101 @@
         231,
         56
       ],
-      "accounts": [],
-      "args": []
+      "accounts": [
+        {
+          "name": "owner",
+          "docs": [
+            "The human owner creating this policy. Signs the transaction and pays",
+            "rent for both PDA accounts."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "agent",
+          "docs": [
+            "The agent session pubkey used as a PDA seed. Not a signer here — the",
+            "agent will sign `guarded_execute` transactions later."
+          ]
+        },
+        {
+          "name": "policy",
+          "docs": [
+            "The PermissionPolicy PDA to create.",
+            "One policy per unique (owner, agent) pair."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "account",
+                "path": "agent"
+              }
+            ]
+          }
+        },
+        {
+          "name": "spend_tracker",
+          "docs": [
+            "The SpendTracker PDA, created alongside the policy.",
+            "Tracks rolling 24h spend metrics in a separate account to avoid",
+            "realloc on the larger policy account during frequent updates."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  97,
+                  99,
+                  107,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "policy"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "docs": [
+            "Required by Anchor for PDA account creation (rent payment)."
+          ],
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "InitializePolicyArgs"
+            }
+          }
+        }
+      ]
     },
     {
       "name": "pause_agent",
@@ -99,6 +196,10 @@
     },
     {
       "name": "update_policy",
+      "docs": [
+        "Updates configurable fields on an existing PermissionPolicy.",
+        "Only the stored owner can call this. Fields wrapped in None are unchanged."
+      ],
       "discriminator": [
         212,
         245,
@@ -109,8 +210,91 @@
         18,
         57
       ],
-      "accounts": [],
-      "args": []
+      "accounts": [
+        {
+          "name": "owner",
+          "docs": [
+            "The policy owner. Must sign. The `has_one` constraint on `policy`",
+            "verifies that this signer matches the stored `policy.owner`."
+          ],
+          "signer": true,
+          "relations": [
+            "policy"
+          ]
+        },
+        {
+          "name": "policy",
+          "docs": [
+            "The PermissionPolicy PDA to update. Only the stored owner can modify it.",
+            "The `has_one = owner` constraint enforces ownership — Anchor checks",
+            "`policy.owner == owner.key()` and returns ConstraintHasOne on mismatch."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "policy.owner",
+                "account": "PermissionPolicy"
+              },
+              {
+                "kind": "account",
+                "path": "policy.agent",
+                "account": "PermissionPolicy"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "UpdatePolicyArgs"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "PermissionPolicy",
+      "discriminator": [
+        181,
+        30,
+        97,
+        51,
+        83,
+        108,
+        84,
+        127
+      ]
+    },
+    {
+      "name": "SpendTracker",
+      "discriminator": [
+        180,
+        17,
+        195,
+        180,
+        162,
+        207,
+        239,
+        205
+      ]
     }
   ],
   "events": [
@@ -207,6 +391,26 @@
       "code": 6007,
       "name": "EscalatedToMultisig",
       "msg": "Escalation required — proposal created on Squads"
+    },
+    {
+      "code": 6008,
+      "name": "TooManyAllowedPrograms",
+      "msg": "Too many programs in allow-list (max 10)"
+    },
+    {
+      "code": 6009,
+      "name": "TooManyMonitors",
+      "msg": "Too many authorized monitors (max 3)"
+    },
+    {
+      "code": 6010,
+      "name": "SessionExpiryInPast",
+      "msg": "Session expiry must be in the future"
+    },
+    {
+      "code": 6011,
+      "name": "TxLimitExceedsDailyBudget",
+      "msg": "Per-tx limit cannot exceed daily budget"
     }
   ],
   "types": [
@@ -354,11 +558,15 @@
     {
       "name": "GuardedTxnRejected",
       "docs": [
-        "Emitted when a `guarded_execute` CPI fails (target program returns error).",
+        "Emitted when `guarded_execute` rejects a transaction — either during",
+        "pre-CPI validation (policy paused, session expired, program not",
+        "whitelisted, spending limit exceeded) or when the downstream CPI itself",
+        "fails.",
         "",
-        "Note: This is for CPI failures, not validation rejections. Validation",
-        "failures (paused, expired, wrong program, over limit) cause the entire",
-        "transaction to revert with an error code — no event is emitted."
+        "On Solana, program logs (`emit!()`) persist in the transaction metadata",
+        "even when the transaction ultimately fails, so this event is emitted",
+        "immediately before the instruction returns an error and will be visible",
+        "to Helius webhooks monitoring failed transactions."
       ],
       "type": {
         "kind": "struct",
@@ -385,7 +593,8 @@
               "1 = SessionExpired",
               "2 = ProgramNotWhitelisted",
               "3 = AmountExceedsLimit",
-              "4 = DailyBudgetExceeded"
+              "4 = DailyBudgetExceeded",
+              "5 = CpiFailure"
             ],
             "type": "u8"
           },
@@ -395,6 +604,403 @@
               "Unix timestamp from the Solana clock."
             ],
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitializePolicyArgs",
+      "docs": [
+        "Arguments for creating a new PermissionPolicy. All configurable fields",
+        "are set explicitly — no hidden defaults. Runtime-managed fields (counters,",
+        "pause state, anomaly score) are initialized to safe defaults by the handler."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "allowed_programs",
+            "docs": [
+              "Program IDs the agent is allowed to CPI into. Max 10."
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "max_tx_lamports",
+            "docs": [
+              "Maximum lamports per single transaction."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "max_tx_token_units",
+            "docs": [
+              "Maximum SPL token units (raw, not decimal-adjusted) per transaction."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "daily_budget_lamports",
+            "docs": [
+              "Maximum lamports in a rolling 24-hour window."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "session_expiry",
+            "docs": [
+              "Unix timestamp after which the agent session key expires."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "squads_multisig",
+            "docs": [
+              "Optional Squads v4 multisig for high-value escalation. None = disabled."
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "escalation_threshold",
+            "docs": [
+              "Lamport threshold above which Squads approval is required.",
+              "Only meaningful when `squads_multisig` is Some."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "authorized_monitors",
+            "docs": [
+              "Off-chain monitor pubkeys allowed to call `pause_agent`. Max 3."
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PermissionPolicy",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "docs": [
+              "The human wallet that created and controls this policy.",
+              "Only the owner can update limits, resume a paused agent, or rotate keys."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "agent",
+            "docs": [
+              "The agent session pubkey. This key signs `guarded_execute` transactions",
+              "but holds no funds — the policy PDA is the actual authority over funds."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "allowed_programs",
+            "docs": [
+              "Program IDs the agent is allowed to CPI into via `guarded_execute`.",
+              "Capped at MAX_ALLOWED_PROGRAMS (10) entries for MVP."
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "max_tx_lamports",
+            "docs": [
+              "Maximum lamports the agent can spend in a single transaction."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "max_tx_token_units",
+            "docs": [
+              "Maximum SPL token units (raw, not decimal-adjusted) per transaction."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "daily_budget_lamports",
+            "docs": [
+              "Maximum lamports the agent can spend in a rolling 24-hour window."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "daily_spent_lamports",
+            "docs": [
+              "Lamports spent so far in the current 24-hour window.",
+              "Reset to 0 when the window rolls over (see `is_budget_window_expired`)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_reset_ts",
+            "docs": [
+              "Unix timestamp marking the start of the current budget window.",
+              "When `now > last_reset_ts + SECONDS_PER_DAY`, the window resets."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "session_expiry",
+            "docs": [
+              "Unix timestamp after which the agent session key is no longer valid.",
+              "Any `guarded_execute` call after this time is rejected with SessionExpired."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "is_active",
+            "docs": [
+              "Kill switch. When false, all `guarded_execute` calls are rejected",
+              "immediately. Set to false by `pause_agent`, restored by `resume_agent`."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "paused_by",
+            "docs": [
+              "The pubkey of whoever paused this policy (owner, monitor, or multisig).",
+              "None when the policy is active."
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "paused_reason",
+            "docs": [
+              "Short human-readable reason for the pause, stored as fixed-size bytes.",
+              "Padded with trailing zeros if the reason is shorter than 64 bytes.",
+              "Not a String — account structs must use fixed-size types."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "squads_multisig",
+            "docs": [
+              "Optional Squads v4 multisig address. When set, transactions exceeding",
+              "`escalation_threshold` are routed to Squads for multi-sig approval",
+              "instead of being executed directly."
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "escalation_threshold",
+            "docs": [
+              "Lamport threshold above which a transaction requires Squads approval.",
+              "Only meaningful when `squads_multisig` is Some."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "authorized_monitors",
+            "docs": [
+              "Off-chain monitor pubkeys authorized to call `pause_agent`.",
+              "Capped at MAX_AUTHORIZED_MONITORS (3). The owner can always pause",
+              "without being in this list."
+            ],
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "anomaly_score",
+            "docs": [
+              "Most recent anomaly score assigned by the Claude judge (0–100).",
+              "Written by the server via `update_policy` after anomaly detection.",
+              "0 = clean, 100 = maximum anomaly."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump seed, stored to avoid recomputing on every constraint check."
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpendTracker",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "policy",
+            "docs": [
+              "The PermissionPolicy PDA this tracker belongs to.",
+              "Links back to the parent policy for validation in constraints."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "window_start",
+            "docs": [
+              "Unix timestamp marking the start of the current 24-hour tracking window.",
+              "When the window expires, `txn_count_24h` and `lamports_spent_24h` reset."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "txn_count_24h",
+            "docs": [
+              "Number of successful guarded transactions in the current window.",
+              "Incremented by 1 on each successful `guarded_execute` CPI."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "lamports_spent_24h",
+            "docs": [
+              "Total lamports spent through `guarded_execute` in the current window.",
+              "Uses the verified amount parsed from instruction data, not `amount_hint`."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "last_txn_ts",
+            "docs": [
+              "Unix timestamp of the most recent successful transaction."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_txn_program",
+            "docs": [
+              "Program ID invoked in the most recent successful transaction.",
+              "Useful for server-side anomaly detection (detects sudden program switches).",
+              "Initialized to Pubkey::default() (all zeros) until the first transaction."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump seed, stored to avoid recomputing on every constraint check."
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UpdatePolicyArgs",
+      "docs": [
+        "Arguments for updating a PermissionPolicy. Every field is wrapped in",
+        "`Option<T>` — only `Some` values are applied, `None` means \"leave unchanged.\"",
+        "",
+        "To clear `squads_multisig` back to None, pass `Some(Pubkey::default())`",
+        "(all-zero pubkey is interpreted as \"remove multisig\")."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "allowed_programs",
+            "docs": [
+              "Replace the entire allow-list. None = leave unchanged."
+            ],
+            "type": {
+              "option": {
+                "vec": "pubkey"
+              }
+            }
+          },
+          {
+            "name": "max_tx_lamports",
+            "docs": [
+              "New per-transaction lamport cap. None = leave unchanged."
+            ],
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "max_tx_token_units",
+            "docs": [
+              "New per-transaction SPL token unit cap. None = leave unchanged."
+            ],
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "daily_budget_lamports",
+            "docs": [
+              "New rolling 24h lamport budget. None = leave unchanged."
+            ],
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "session_expiry",
+            "docs": [
+              "New session expiry timestamp. None = leave unchanged."
+            ],
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "squads_multisig",
+            "docs": [
+              "New Squads multisig address. None = leave unchanged.",
+              "Pass Some(Pubkey::default()) to clear the multisig."
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "escalation_threshold",
+            "docs": [
+              "New escalation threshold in lamports. None = leave unchanged."
+            ],
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "authorized_monitors",
+            "docs": [
+              "Replace the entire monitor list. None = leave unchanged."
+            ],
+            "type": {
+              "option": {
+                "vec": "pubkey"
+              }
+            }
+          },
+          {
+            "name": "anomaly_score",
+            "docs": [
+              "New anomaly score (set by server after Claude judge run). None = leave unchanged."
+            ],
+            "type": {
+              "option": "u8"
+            }
           }
         ]
       }

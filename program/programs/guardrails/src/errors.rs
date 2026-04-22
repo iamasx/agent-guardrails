@@ -24,4 +24,15 @@ pub enum GuardrailsError {
     ResumeRequiresOwner,
     #[msg("Escalation required — proposal created on Squads")]
     EscalatedToMultisig,
+
+    // --- Validation errors (added in Phase 2) ---
+
+    #[msg("Too many programs in allow-list (max 10)")]
+    TooManyAllowedPrograms,
+    #[msg("Too many authorized monitors (max 3)")]
+    TooManyMonitors,
+    #[msg("Session expiry must be in the future")]
+    SessionExpiryInPast,
+    #[msg("Per-tx limit cannot exceed daily budget")]
+    TxLimitExceedsDailyBudget,
 }

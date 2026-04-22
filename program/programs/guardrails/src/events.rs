@@ -30,11 +30,15 @@ pub struct GuardedTxnExecuted {
     pub txn_sig: String,
 }
 
-/// Emitted when a `guarded_execute` CPI fails (target program returns error).
+/// Emitted when `guarded_execute` rejects a transaction — either during
+/// pre-CPI validation (policy paused, session expired, program not
+/// whitelisted, spending limit exceeded) or when the downstream CPI itself
+/// fails.
 ///
-/// Note: This is for CPI failures, not validation rejections. Validation
-/// failures (paused, expired, wrong program, over limit) cause the entire
-/// transaction to revert with an error code — no event is emitted.
+/// On Solana, program logs (`emit!()`) persist in the transaction metadata
+/// even when the transaction ultimately fails, so this event is emitted
+/// immediately before the instruction returns an error and will be visible
+/// to Helius webhooks monitoring failed transactions.
 #[event]
 pub struct GuardedTxnRejected {
     /// The PermissionPolicy PDA for this transaction.
@@ -47,6 +51,7 @@ pub struct GuardedTxnRejected {
     ///   2 = ProgramNotWhitelisted
     ///   3 = AmountExceedsLimit
     ///   4 = DailyBudgetExceeded
+    ///   5 = CpiFailure
     pub reason: u8,
     /// Unix timestamp from the Solana clock.
     pub timestamp: i64,

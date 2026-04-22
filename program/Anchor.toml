@@ -1,14 +1,14 @@
 [toolchain]
 
 [features]
-seeds = false
+resolution = true
 skip-lint = false
 
-[programs.localnet]
-guardrails = "11111111111111111111111111111111"
-
 [programs.devnet]
-guardrails = "11111111111111111111111111111111"
+guardrails = "ENzC6oJhL2bVELvRCZqN4JizFNPTCTfMR5Gz1YJb4u76"
+
+[programs.localnet]
+guardrails = "ENzC6oJhL2bVELvRCZqN4JizFNPTCTfMR5Gz1YJb4u76"
 
 [registry]
 url = "https://api.apr.dev"
