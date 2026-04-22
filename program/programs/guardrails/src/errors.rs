@@ -42,4 +42,9 @@ pub enum GuardrailsError {
     AmountMismatch,
     #[msg("CPI to target program failed")]
     CpiExecutionFailed,
+
+    // --- Phase 4 errors ---
+
+    #[msg("This instruction is not yet implemented")]
+    NotYetImplemented,
 }

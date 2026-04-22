@@ -72,6 +72,19 @@ pub struct AgentPaused {
     pub timestamp: i64,
 }
 
+/// Emitted when `resume_agent` is called by the owner to re-activate a
+/// paused policy. The server uses this to resolve the active incident and
+/// update the dashboard via SSE.
+#[event]
+pub struct AgentResumed {
+    /// The PermissionPolicy PDA that was resumed.
+    pub policy: Pubkey,
+    /// The owner who resumed the agent (only owner can resume).
+    pub resumed_by: Pubkey,
+    /// Unix timestamp from the Solana clock.
+    pub timestamp: i64,
+}
+
 /// Emitted when a transaction is escalated to Squads multisig for approval
 /// instead of being executed directly.
 ///

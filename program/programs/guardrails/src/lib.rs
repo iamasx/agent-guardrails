@@ -16,6 +16,10 @@ pub mod state;
 pub use instructions::initialize_policy::*;
 pub use instructions::update_policy::*;
 pub use instructions::guarded_execute::*;
+pub use instructions::pause_agent::*;
+pub use instructions::resume_agent::*;
+pub use instructions::rotate_agent_key::*;
+pub use instructions::escalate_to_squads::*;
 
 declare_id!("ENzC6oJhL2bVELvRCZqN4JizFNPTCTfMR5Gz1YJb4u76");
 
@@ -49,37 +53,27 @@ pub mod guardrails {
         instructions::guarded_execute::handler(ctx, args)
     }
 
-    pub fn pause_agent(_ctx: Context<PauseAgent>) -> Result<()> {
-        Ok(())
+    /// Pauses an agent. Callable by the policy owner or any authorized monitor.
+    /// Sets is_active = false, preventing all guarded_execute calls.
+    pub fn pause_agent(ctx: Context<PauseAgent>, args: PauseAgentArgs) -> Result<()> {
+        instructions::pause_agent::handler(ctx, args)
     }
 
-    pub fn resume_agent(_ctx: Context<ResumeAgent>) -> Result<()> {
-        Ok(())
+    /// Resumes a paused agent. Only the policy owner can call this — monitors
+    /// are excluded to ensure human review before resumption.
+    pub fn resume_agent(ctx: Context<ResumeAgent>) -> Result<()> {
+        instructions::resume_agent::handler(ctx)
     }
 
-    pub fn rotate_agent_key(_ctx: Context<RotateAgentKey>) -> Result<()> {
-        Ok(())
+    /// Rotates the agent session key. STUB — not yet implemented for MVP.
+    /// Returns NotYetImplemented error.
+    pub fn rotate_agent_key(ctx: Context<RotateAgentKey>) -> Result<()> {
+        instructions::rotate_agent_key::handler(ctx)
     }
 
-    pub fn escalate_to_squads(_ctx: Context<EscalateToSquads>) -> Result<()> {
-        Ok(())
+    /// Standalone Squads escalation. STUB — escalation is handled inside
+    /// guarded_execute step 8 for MVP. This is a no-op.
+    pub fn escalate_to_squads(ctx: Context<EscalateToSquads>) -> Result<()> {
+        instructions::escalate_to_squads::handler(ctx)
     }
 }
-
-// ---------------------------------------------------------------------------
-// Placeholder context structs for unimplemented instructions.
-// These will be moved to their respective instruction modules in later phases.
-// DO NOT delete — they are required for the program to compile.
-// ---------------------------------------------------------------------------
-
-#[derive(Accounts)]
-pub struct PauseAgent {}
-
-#[derive(Accounts)]
-pub struct ResumeAgent {}
-
-#[derive(Accounts)]
-pub struct RotateAgentKey {}
-
-#[derive(Accounts)]
-pub struct EscalateToSquads {}

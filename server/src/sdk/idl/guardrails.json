@@ -9,6 +9,10 @@
   "instructions": [
     {
       "name": "escalate_to_squads",
+      "docs": [
+        "Standalone Squads escalation. STUB — escalation is handled inside",
+        "guarded_execute step 8 for MVP. This is a no-op."
+      ],
       "discriminator": [
         122,
         181,
@@ -261,6 +265,10 @@
     },
     {
       "name": "pause_agent",
+      "docs": [
+        "Pauses an agent. Callable by the policy owner or any authorized monitor.",
+        "Sets is_active = false, preventing all guarded_execute calls."
+      ],
       "discriminator": [
         148,
         32,
@@ -271,11 +279,67 @@
         178,
         140
       ],
-      "accounts": [],
-      "args": []
+      "accounts": [
+        {
+          "name": "caller",
+          "docs": [
+            "The caller requesting the pause. Must be either the policy owner or",
+            "one of the policy's authorized_monitors. Validated in handler body",
+            "(not via has_one, because monitors are a Vec, not a single field)."
+          ],
+          "signer": true
+        },
+        {
+          "name": "policy",
+          "docs": [
+            "The PermissionPolicy PDA to pause. Mutable because is_active,",
+            "paused_by, and paused_reason fields are modified."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "policy.owner",
+                "account": "PermissionPolicy"
+              },
+              {
+                "kind": "account",
+                "path": "policy.agent",
+                "account": "PermissionPolicy"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "PauseAgentArgs"
+            }
+          }
+        }
+      ]
     },
     {
       "name": "resume_agent",
+      "docs": [
+        "Resumes a paused agent. Only the policy owner can call this — monitors",
+        "are excluded to ensure human review before resumption."
+      ],
       "discriminator": [
         124,
         252,
@@ -286,11 +350,61 @@
         85,
         247
       ],
-      "accounts": [],
+      "accounts": [
+        {
+          "name": "owner",
+          "docs": [
+            "The policy owner. Must sign. The `has_one = owner` constraint verifies",
+            "this signer matches the stored `policy.owner`. Unlike pause_agent,",
+            "monitors are NOT allowed to resume."
+          ],
+          "signer": true,
+          "relations": [
+            "policy"
+          ]
+        },
+        {
+          "name": "policy",
+          "docs": [
+            "The PermissionPolicy PDA to resume. Mutable because is_active,",
+            "paused_by, and paused_reason fields are cleared."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "policy.owner",
+                "account": "PermissionPolicy"
+              },
+              {
+                "kind": "account",
+                "path": "policy.agent",
+                "account": "PermissionPolicy"
+              }
+            ]
+          }
+        }
+      ],
       "args": []
     },
     {
       "name": "rotate_agent_key",
+      "docs": [
+        "Rotates the agent session key. STUB — not yet implemented for MVP.",
+        "Returns NotYetImplemented error."
+      ],
       "discriminator": [
         85,
         31,
@@ -422,6 +536,19 @@
       ]
     },
     {
+      "name": "AgentResumed",
+      "discriminator": [
+        138,
+        191,
+        50,
+        131,
+        92,
+        153,
+        211,
+        143
+      ]
+    },
+    {
       "name": "EscalatedToSquads",
       "discriminator": [
         105,
@@ -544,6 +671,11 @@
       "code": 6013,
       "name": "CpiExecutionFailed",
       "msg": "CPI to target program failed"
+    },
+    {
+      "code": 6014,
+      "name": "NotYetImplemented",
+      "msg": "This instruction is not yet implemented"
     }
   ],
   "types": [
@@ -582,6 +714,40 @@
                 64
               ]
             }
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Unix timestamp from the Solana clock."
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AgentResumed",
+      "docs": [
+        "Emitted when `resume_agent` is called by the owner to re-activate a",
+        "paused policy. The server uses this to resolve the active incident and",
+        "update the dashboard via SSE."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "policy",
+            "docs": [
+              "The PermissionPolicy PDA that was resumed."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "resumed_by",
+            "docs": [
+              "The owner who resumed the agent (only owner can resume)."
+            ],
+            "type": "pubkey"
           },
           {
             "name": "timestamp",
@@ -889,6 +1055,25 @@
             "type": {
               "vec": "pubkey"
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PauseAgentArgs",
+      "docs": [
+        "Arguments for pausing an agent."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "reason",
+            "docs": [
+              "Human-readable reason for the pause, up to 64 bytes.",
+              "Truncated if longer, zero-padded if shorter."
+            ],
+            "type": "bytes"
           }
         ]
       }
