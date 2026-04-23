@@ -26,7 +26,6 @@ pub enum GuardrailsError {
     EscalatedToMultisig,
 
     // --- Validation errors (added in Phase 2) ---
-
     #[msg("Too many programs in allow-list (max 10)")]
     TooManyAllowedPrograms,
     #[msg("Too many authorized monitors (max 3)")]
@@ -37,14 +36,12 @@ pub enum GuardrailsError {
     TxLimitExceedsDailyBudget,
 
     // --- Execution errors (added in Phase 3) ---
-
     #[msg("Amount hint does not match parsed instruction data")]
     AmountMismatch,
     #[msg("CPI to target program failed")]
     CpiExecutionFailed,
 
     // --- Phase 4 errors ---
-
     #[msg("This instruction is not yet implemented")]
     NotYetImplemented,
 }

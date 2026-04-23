@@ -4,7 +4,8 @@
 // (BN, Keypair, expect, etc.) directly from their packages.
 
 import { fromWorkspace, LiteSVMProvider } from "anchor-litesvm";
-import { Program, BN } from "@coral-xyz/anchor";
+import anchor from "@coral-xyz/anchor";
+const { Program, BN } = anchor;
 import { Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import { createRequire } from "module";
 import {
@@ -23,7 +24,10 @@ import {
 const require = createRequire(import.meta.url);
 const IDL = require("../target/idl/guardrails.json");
 
-export const svm = fromWorkspace(".").withDefaultPrograms();
+// Note: don't use withDefaultPrograms() — it loads ALL SPL programs into the
+// in-process VM and causes std::bad_alloc on CI runners. System Program and
+// SPL Token are already available in the base LiteSVM instance.
+export const svm = fromWorkspace(".");
 export const provider = new LiteSVMProvider(svm);
 export const program = new Program(IDL, provider);
 

@@ -13,13 +13,14 @@ pub mod state;
 // Re-export instruction types at crate root. The #[program] macro generates code
 // that looks for __client_accounts_* modules at crate::*, so glob re-exports are
 // needed for each implemented instruction module.
-pub use instructions::initialize_policy::*;
-pub use instructions::update_policy::*;
+#[allow(ambiguous_glob_reexports)]
+pub use instructions::escalate_to_squads::*;
 pub use instructions::guarded_execute::*;
+pub use instructions::initialize_policy::*;
 pub use instructions::pause_agent::*;
 pub use instructions::resume_agent::*;
 pub use instructions::rotate_agent_key::*;
-pub use instructions::escalate_to_squads::*;
+pub use instructions::update_policy::*;
 
 declare_id!("ENzC6oJhL2bVELvRCZqN4JizFNPTCTfMR5Gz1YJb4u76");
 
@@ -46,10 +47,7 @@ pub mod guardrails {
     /// policy, verifies spending amounts, and executes the target program
     /// instruction via PDA-signed CPI. See IMPLEMENTATION.md §3 for the
     /// full 12-step flow.
-    pub fn guarded_execute(
-        ctx: Context<GuardedExecute>,
-        args: GuardedExecuteArgs,
-    ) -> Result<()> {
+    pub fn guarded_execute(ctx: Context<GuardedExecute>, args: GuardedExecuteArgs) -> Result<()> {
         instructions::guarded_execute::handler(ctx, args)
     }
 

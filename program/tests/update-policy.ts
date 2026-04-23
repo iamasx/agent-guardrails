@@ -1,7 +1,8 @@
 // Tests for the update_policy instruction (field updates, access control, validation).
 
 // Standard deps imported directly from packages
-import { BN } from "@coral-xyz/anchor";
+import anchor from "@coral-xyz/anchor";
+const { BN } = anchor;
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import { expect } from "chai";
 import { Clock } from "litesvm";

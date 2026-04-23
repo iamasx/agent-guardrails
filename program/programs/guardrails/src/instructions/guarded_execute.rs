@@ -77,7 +77,6 @@ pub struct GuardedExecute<'info> {
     /// System program — required for potential rent operations and as a CPI
     /// target when the agent performs System Program transfers.
     pub system_program: Program<'info, System>,
-
     // Additional accounts for the CPI are passed via ctx.remaining_accounts.
     // The agent/SDK places the target program's required accounts there,
     // including the policy PDA as signer (invoke_signed handles PDA signing).
@@ -122,13 +121,9 @@ fn parse_verified_amount(
         //   bytes 0-3:  u32 instruction index (2 = Transfer)
         //   bytes 4-11: u64 lamports (little-endian)
         if instruction_data.len() >= 12 {
-            let ix_index = u32::from_le_bytes(
-                instruction_data[0..4].try_into().unwrap(),
-            );
+            let ix_index = u32::from_le_bytes(instruction_data[0..4].try_into().unwrap());
             if ix_index == 2 {
-                let parsed_amount = u64::from_le_bytes(
-                    instruction_data[4..12].try_into().unwrap(),
-                );
+                let parsed_amount = u64::from_le_bytes(instruction_data[4..12].try_into().unwrap());
                 require!(
                     parsed_amount == amount_hint,
                     GuardrailsError::AmountMismatch
@@ -145,9 +140,7 @@ fn parse_verified_amount(
         if instruction_data.len() >= 9 {
             let discriminator = instruction_data[0];
             if discriminator == 3 {
-                let parsed_amount = u64::from_le_bytes(
-                    instruction_data[1..9].try_into().unwrap(),
-                );
+                let parsed_amount = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
                 require!(
                     parsed_amount == amount_hint,
                     GuardrailsError::AmountMismatch
@@ -190,10 +183,7 @@ pub fn handler(ctx: Context<GuardedExecute>, args: GuardedExecuteArgs) -> Result
     // -----------------------------------------------------------------------
 
     // Step 2: Kill switch — reject immediately if policy is paused
-    require!(
-        ctx.accounts.policy.is_active,
-        GuardrailsError::PolicyPaused
-    );
+    require!(ctx.accounts.policy.is_active, GuardrailsError::PolicyPaused);
 
     // Step 3: Session expiry — reject if agent key has expired
     require!(
@@ -203,7 +193,10 @@ pub fn handler(ctx: Context<GuardedExecute>, args: GuardedExecuteArgs) -> Result
 
     // Step 4: Program whitelist — reject if target is not allowed
     require!(
-        ctx.accounts.policy.allowed_programs.contains(&target_program_key),
+        ctx.accounts
+            .policy
+            .allowed_programs
+            .contains(&target_program_key),
         GuardrailsError::ProgramNotWhitelisted
     );
 
@@ -238,7 +231,9 @@ pub fn handler(ctx: Context<GuardedExecute>, args: GuardedExecuteArgs) -> Result
     // -----------------------------------------------------------------------
 
     require!(
-        ctx.accounts.policy.daily_spent_lamports
+        ctx.accounts
+            .policy
+            .daily_spent_lamports
             .checked_add(verified_amount)
             .ok_or(GuardrailsError::DailyBudgetExceeded)?
             <= ctx.accounts.policy.daily_budget_lamports,
@@ -323,7 +318,7 @@ pub fn handler(ctx: Context<GuardedExecute>, args: GuardedExecuteArgs) -> Result
     ];
 
     // Execute the CPI
-    let cpi_result = invoke_signed(&cpi_ix, &cpi_account_infos, &[signer_seeds]);
+    let cpi_result = invoke_signed(&cpi_ix, cpi_account_infos, &[signer_seeds]);
 
     // -----------------------------------------------------------------------
     // Steps 11-12: Handle CPI result
@@ -338,21 +333,16 @@ pub fn handler(ctx: Context<GuardedExecute>, args: GuardedExecuteArgs) -> Result
                 .accounts
                 .policy
                 .daily_spent_lamports
-                .checked_add(verified_amount)
-                .unwrap_or(u64::MAX);
+                .saturating_add(verified_amount);
 
             // Update SpendTracker
             ctx.accounts.spend_tracker.lamports_spent_24h = ctx
                 .accounts
                 .spend_tracker
                 .lamports_spent_24h
-                .checked_add(verified_amount)
-                .unwrap_or(u64::MAX);
-            ctx.accounts.spend_tracker.txn_count_24h = ctx
-                .accounts
-                .spend_tracker
-                .txn_count_24h
-                .saturating_add(1);
+                .saturating_add(verified_amount);
+            ctx.accounts.spend_tracker.txn_count_24h =
+                ctx.accounts.spend_tracker.txn_count_24h.saturating_add(1);
             ctx.accounts.spend_tracker.last_txn_ts = now;
             ctx.accounts.spend_tracker.last_txn_program = target_program_key;
 
