@@ -7,6 +7,7 @@ import { env } from "../../config/env.js";
 import { ingest } from "../pipeline/ingest.js";
 import { prefilter } from "../pipeline/prefilter.js";
 import { judgeTransaction } from "../pipeline/judge.js";
+import { executePause } from "../pipeline/executor.js";
 
 /**
  * Verify the Helius webhook signature.
@@ -108,8 +109,10 @@ export async function webhookHandler(req: Request, res: Response): Promise<void>
       // Judge: Claude Haiku evaluates the transaction
       const verdict = await judgeTransaction(row, signals);
 
-      // Phase 4 will add: if verdict.verdict === "pause" → executor → reporter
-      void verdict;
+      // Executor: if judge says pause, send on-chain pause + create incident + async report
+      if (verdict.verdict === "pause") {
+        await executePause(row, row.id, verdict.reasoning);
+      }
     } catch (err) {
       console.error(`[webhook] pipeline error for ${txn.signature}:`, err);
     }
