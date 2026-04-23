@@ -370,4 +370,462 @@ describe("integration", () => {
     expect(policy.isActive).to.be.true;
     expect(policy.pausedBy).to.be.null;
   });
+
+  it("update whitelist adds program → execute with new program passes validation", async () => {
+    const owner = Keypair.generate();
+    const agent = Keypair.generate();
+    const newProgram = Keypair.generate(); // random "program" to whitelist
+    svm.airdrop(owner.publicKey, 10_000_000_000n);
+    svm.airdrop(agent.publicKey, 2_000_000_000n);
+
+    const [policyPda] = findPolicyPda(owner.publicKey, agent.publicKey);
+    const [trackerPda] = findTrackerPda(policyPda);
+
+    // Init with only System Program allowed
+    await program.methods
+      .initializePolicy({
+        allowedPrograms: [SystemProgram.programId],
+        maxTxLamports: new BN(1_000_000_000),
+        maxTxTokenUnits: new BN(1_000_000),
+        dailyBudgetLamports: new BN(5_000_000_000),
+        sessionExpiry: defaultSessionExpiry,
+        squadsMultisig: null,
+        escalationThreshold: new BN(10_000_000_000),
+        authorizedMonitors: [],
+      })
+      .accounts({
+        owner: owner.publicKey, agent: agent.publicKey,
+        policy: policyPda, spendTracker: trackerPda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([owner])
+      .rpc();
+
+    // Execute targeting newProgram → should fail (not whitelisted)
+    try {
+      await program.methods
+        .guardedExecute({ instructionData: Buffer.alloc(4), amountHint: new BN(0) })
+        .accounts({
+          agent: agent.publicKey, policy: policyPda, spendTracker: trackerPda,
+          targetProgram: newProgram.publicKey, systemProgram: SystemProgram.programId,
+        })
+        .remainingAccounts([
+          { pubkey: newProgram.publicKey, isWritable: false, isSigner: false },
+        ])
+        .signers([agent])
+        .rpc();
+      expect.fail("Expected ProgramNotWhitelisted");
+    } catch (err: any) {
+      expect(err.toString()).to.include("ProgramNotWhitelisted");
+    }
+
+    // Update whitelist to include newProgram
+    await program.methods
+      .updatePolicy({
+        allowedPrograms: [SystemProgram.programId, newProgram.publicKey],
+        maxTxLamports: null, maxTxTokenUnits: null, dailyBudgetLamports: null,
+        sessionExpiry: null, squadsMultisig: null, escalationThreshold: null,
+        authorizedMonitors: null, anomalyScore: null,
+      })
+      .accounts({ owner: owner.publicKey, policy: policyPda })
+      .signers([owner])
+      .rpc();
+
+    // Execute targeting newProgram → should pass validation now
+    // (will fail at CPI since newProgram isn't a real program, but NOT ProgramNotWhitelisted)
+    try {
+      await program.methods
+        .guardedExecute({ instructionData: Buffer.alloc(4), amountHint: new BN(0) })
+        .accounts({
+          agent: agent.publicKey, policy: policyPda, spendTracker: trackerPda,
+          targetProgram: newProgram.publicKey, systemProgram: SystemProgram.programId,
+        })
+        .remainingAccounts([
+          { pubkey: newProgram.publicKey, isWritable: false, isSigner: false },
+        ])
+        .signers([agent])
+        .rpc();
+    } catch (err: any) {
+      expect(err.toString()).to.not.include("ProgramNotWhitelisted");
+    }
+  });
+
+  it("update removes program from whitelist → execute fails with ProgramNotWhitelisted", async () => {
+    const owner = Keypair.generate();
+    const agent = Keypair.generate();
+    const extraProgram = Keypair.generate();
+    svm.airdrop(owner.publicKey, 10_000_000_000n);
+    svm.airdrop(agent.publicKey, 2_000_000_000n);
+
+    const [policyPda] = findPolicyPda(owner.publicKey, agent.publicKey);
+    const [trackerPda] = findTrackerPda(policyPda);
+
+    // Init with System Program + extraProgram allowed
+    await program.methods
+      .initializePolicy({
+        allowedPrograms: [SystemProgram.programId, extraProgram.publicKey],
+        maxTxLamports: new BN(1_000_000_000),
+        maxTxTokenUnits: new BN(1_000_000),
+        dailyBudgetLamports: new BN(5_000_000_000),
+        sessionExpiry: defaultSessionExpiry,
+        squadsMultisig: null,
+        escalationThreshold: new BN(10_000_000_000),
+        authorizedMonitors: [],
+      })
+      .accounts({
+        owner: owner.publicKey, agent: agent.publicKey,
+        policy: policyPda, spendTracker: trackerPda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([owner])
+      .rpc();
+
+    // Update: remove extraProgram from whitelist (only keep System Program)
+    await program.methods
+      .updatePolicy({
+        allowedPrograms: [SystemProgram.programId],
+        maxTxLamports: null, maxTxTokenUnits: null, dailyBudgetLamports: null,
+        sessionExpiry: null, squadsMultisig: null, escalationThreshold: null,
+        authorizedMonitors: null, anomalyScore: null,
+      })
+      .accounts({ owner: owner.publicKey, policy: policyPda })
+      .signers([owner])
+      .rpc();
+
+    // Execute targeting extraProgram → should fail (no longer whitelisted)
+    try {
+      await program.methods
+        .guardedExecute({ instructionData: Buffer.alloc(4), amountHint: new BN(0) })
+        .accounts({
+          agent: agent.publicKey, policy: policyPda, spendTracker: trackerPda,
+          targetProgram: extraProgram.publicKey, systemProgram: SystemProgram.programId,
+        })
+        .remainingAccounts([
+          { pubkey: extraProgram.publicKey, isWritable: false, isSigner: false },
+        ])
+        .signers([agent])
+        .rpc();
+      expect.fail("Expected ProgramNotWhitelisted");
+    } catch (err: any) {
+      expect(err.toString()).to.include("ProgramNotWhitelisted");
+    }
+  });
+
+  it("add squads via update → large transfer triggers EscalatedToMultisig", async () => {
+    const owner = Keypair.generate();
+    const agent = Keypair.generate();
+    svm.airdrop(owner.publicKey, 10_000_000_000n);
+    svm.airdrop(agent.publicKey, 2_000_000_000n);
+
+    const [policyPda] = findPolicyPda(owner.publicKey, agent.publicKey);
+    const [trackerPda] = findTrackerPda(policyPda);
+
+    // Init WITHOUT squads multisig
+    await program.methods
+      .initializePolicy({
+        allowedPrograms: [SystemProgram.programId],
+        maxTxLamports: new BN(2_000_000_000),
+        maxTxTokenUnits: new BN(1_000_000),
+        dailyBudgetLamports: new BN(5_000_000_000),
+        sessionExpiry: defaultSessionExpiry,
+        squadsMultisig: null,
+        escalationThreshold: new BN(500_000),
+        authorizedMonitors: [],
+      })
+      .accounts({
+        owner: owner.publicKey, agent: agent.publicKey,
+        policy: policyPda, spendTracker: trackerPda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([owner])
+      .rpc();
+
+    // 1 SOL transfer should NOT escalate (no multisig set)
+    const txData = buildSystemTransferData(1_000_000_000n);
+    try {
+      await program.methods
+        .guardedExecute({ instructionData: txData, amountHint: new BN(1_000_000_000) })
+        .accounts({
+          agent: agent.publicKey, policy: policyPda, spendTracker: trackerPda,
+          targetProgram: SystemProgram.programId, systemProgram: SystemProgram.programId,
+        })
+        .remainingAccounts([
+          { pubkey: policyPda, isWritable: true, isSigner: false },
+          { pubkey: Keypair.generate().publicKey, isWritable: true, isSigner: false },
+          { pubkey: SystemProgram.programId, isWritable: false, isSigner: false },
+        ])
+        .signers([agent])
+        .rpc();
+    } catch (err: any) {
+      // Should NOT be EscalatedToMultisig (no multisig set)
+      expect(err.toString()).to.not.include("EscalatedToMultisig");
+    }
+
+    // Update: add squads multisig
+    const squadsMultisig = Keypair.generate().publicKey;
+    await program.methods
+      .updatePolicy({
+        allowedPrograms: null, maxTxLamports: null, maxTxTokenUnits: null,
+        dailyBudgetLamports: null, sessionExpiry: null,
+        squadsMultisig: squadsMultisig,
+        escalationThreshold: new BN(500_000), // 500k threshold
+        authorizedMonitors: null, anomalyScore: null,
+      })
+      .accounts({ owner: owner.publicKey, policy: policyPda })
+      .signers([owner])
+      .rpc();
+
+    // Same 1 SOL transfer now exceeds 500k threshold → should escalate
+    const txData2 = buildSystemTransferData(1_000_000_001n); // unique amount
+    try {
+      await program.methods
+        .guardedExecute({ instructionData: txData2, amountHint: new BN(1_000_000_001) })
+        .accounts({
+          agent: agent.publicKey, policy: policyPda, spendTracker: trackerPda,
+          targetProgram: SystemProgram.programId, systemProgram: SystemProgram.programId,
+        })
+        .remainingAccounts([
+          { pubkey: policyPda, isWritable: true, isSigner: false },
+          { pubkey: Keypair.generate().publicKey, isWritable: true, isSigner: false },
+          { pubkey: SystemProgram.programId, isWritable: false, isSigner: false },
+        ])
+        .signers([agent])
+        .rpc();
+      expect.fail("Expected EscalatedToMultisig");
+    } catch (err: any) {
+      expect(err.toString()).to.include("EscalatedToMultisig");
+    }
+  });
+
+  it("extend session via update → execute succeeds after original expiry", async () => {
+    const owner = Keypair.generate();
+    const agent = Keypair.generate();
+    svm.airdrop(owner.publicKey, 10_000_000_000n);
+    svm.airdrop(agent.publicKey, 2_000_000_000n);
+
+    const [policyPda] = findPolicyPda(owner.publicKey, agent.publicKey);
+    const [trackerPda] = findTrackerPda(policyPda);
+
+    const currentClock = svm.getClock();
+    const originalExpiry = new BN(Number(currentClock.unixTimestamp) + 100);
+    const extendedExpiry = new BN(Number(currentClock.unixTimestamp) + 10_000);
+
+    // Init with short session expiry (now + 100s)
+    await program.methods
+      .initializePolicy({
+        allowedPrograms: [SystemProgram.programId],
+        maxTxLamports: new BN(1_000_000_000),
+        maxTxTokenUnits: new BN(1_000_000),
+        dailyBudgetLamports: new BN(5_000_000_000),
+        sessionExpiry: originalExpiry,
+        squadsMultisig: null,
+        escalationThreshold: new BN(10_000_000_000),
+        authorizedMonitors: [],
+      })
+      .accounts({
+        owner: owner.publicKey, agent: agent.publicKey,
+        policy: policyPda, spendTracker: trackerPda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([owner])
+      .rpc();
+
+    // Extend session to now + 10000s
+    await program.methods
+      .updatePolicy({
+        allowedPrograms: null, maxTxLamports: null, maxTxTokenUnits: null,
+        dailyBudgetLamports: null,
+        sessionExpiry: extendedExpiry,
+        squadsMultisig: null, escalationThreshold: null,
+        authorizedMonitors: null, anomalyScore: null,
+      })
+      .accounts({ owner: owner.publicKey, policy: policyPda })
+      .signers([owner])
+      .rpc();
+
+    // Warp clock past original expiry but before extended expiry
+    try {
+      svm.setClock(new Clock(
+        currentClock.slot + 500n,
+        currentClock.epochStartTimestamp,
+        currentClock.epoch,
+        currentClock.leaderScheduleEpoch,
+        BigInt(originalExpiry.toNumber() + 50), // past original, before extended
+      ));
+
+      const txData = buildSystemTransferData(100_000n);
+      try {
+        await program.methods
+          .guardedExecute({ instructionData: txData, amountHint: new BN(100_000) })
+          .accounts({
+            agent: agent.publicKey, policy: policyPda, spendTracker: trackerPda,
+            targetProgram: SystemProgram.programId, systemProgram: SystemProgram.programId,
+          })
+          .remainingAccounts([
+            { pubkey: policyPda, isWritable: true, isSigner: false },
+            { pubkey: Keypair.generate().publicKey, isWritable: true, isSigner: false },
+            { pubkey: SystemProgram.programId, isWritable: false, isSigner: false },
+          ])
+          .signers([agent])
+          .rpc();
+      } catch (err: any) {
+        // Should NOT be SessionExpired — session was extended
+        expect(err.toString()).to.not.include("SessionExpired");
+      }
+    } finally {
+      svm.setClock(currentClock);
+    }
+  });
+
+  it("two agents for same owner — pausing one does not affect the other", async () => {
+    const owner = Keypair.generate();
+    const agent1 = Keypair.generate();
+    const agent2 = Keypair.generate();
+    svm.airdrop(owner.publicKey, 10_000_000_000n);
+    svm.airdrop(agent1.publicKey, 2_000_000_000n);
+    svm.airdrop(agent2.publicKey, 2_000_000_000n);
+
+    const [policy1Pda] = findPolicyPda(owner.publicKey, agent1.publicKey);
+    const [tracker1Pda] = findTrackerPda(policy1Pda);
+    const [policy2Pda] = findPolicyPda(owner.publicKey, agent2.publicKey);
+    const [tracker2Pda] = findTrackerPda(policy2Pda);
+
+    // Init both policies
+    for (const [agentKp, policyPda, trackerPda] of [
+      [agent1, policy1Pda, tracker1Pda],
+      [agent2, policy2Pda, tracker2Pda],
+    ] as [Keypair, PublicKey, PublicKey][]) {
+      await program.methods
+        .initializePolicy({
+          allowedPrograms: [SystemProgram.programId],
+          maxTxLamports: new BN(1_000_000_000),
+          maxTxTokenUnits: new BN(1_000_000),
+          dailyBudgetLamports: new BN(5_000_000_000),
+          sessionExpiry: defaultSessionExpiry,
+          squadsMultisig: null,
+          escalationThreshold: new BN(10_000_000_000),
+          authorizedMonitors: [],
+        })
+        .accounts({
+          owner: owner.publicKey, agent: agentKp.publicKey,
+          policy: policyPda, spendTracker: trackerPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([owner])
+        .rpc();
+    }
+
+    // Pause agent1
+    await program.methods
+      .pauseAgent({ reason: Buffer.from("Agent 1 compromised") })
+      .accounts({ caller: owner.publicKey, policy: policy1Pda })
+      .signers([owner])
+      .rpc();
+
+    // Agent1 should be paused
+    const p1 = await program.account.permissionPolicy.fetch(policy1Pda);
+    expect(p1.isActive).to.be.false;
+
+    // Agent2 should still be active
+    const p2 = await program.account.permissionPolicy.fetch(policy2Pda);
+    expect(p2.isActive).to.be.true;
+
+    // Agent2 can still pass validation (will fail at CPI, but not PolicyPaused)
+    const txData = buildSystemTransferData(100_000n);
+    try {
+      await program.methods
+        .guardedExecute({ instructionData: txData, amountHint: new BN(100_000) })
+        .accounts({
+          agent: agent2.publicKey, policy: policy2Pda, spendTracker: tracker2Pda,
+          targetProgram: SystemProgram.programId, systemProgram: SystemProgram.programId,
+        })
+        .remainingAccounts([
+          { pubkey: policy2Pda, isWritable: true, isSigner: false },
+          { pubkey: Keypair.generate().publicKey, isWritable: true, isSigner: false },
+          { pubkey: SystemProgram.programId, isWritable: false, isSigner: false },
+        ])
+        .signers([agent2])
+        .rpc();
+    } catch (err: any) {
+      expect(err.toString()).to.not.include("PolicyPaused");
+    }
+  });
+
+  it("update policy while paused → resume → new limits enforced", async () => {
+    const owner = Keypair.generate();
+    const agent = Keypair.generate();
+    svm.airdrop(owner.publicKey, 10_000_000_000n);
+    svm.airdrop(agent.publicKey, 2_000_000_000n);
+
+    const [policyPda] = findPolicyPda(owner.publicKey, agent.publicKey);
+    const [trackerPda] = findTrackerPda(policyPda);
+
+    // Init with 1 SOL per-tx limit
+    await program.methods
+      .initializePolicy({
+        allowedPrograms: [SystemProgram.programId],
+        maxTxLamports: new BN(1_000_000_000),
+        maxTxTokenUnits: new BN(1_000_000),
+        dailyBudgetLamports: new BN(5_000_000_000),
+        sessionExpiry: defaultSessionExpiry,
+        squadsMultisig: null,
+        escalationThreshold: new BN(10_000_000_000),
+        authorizedMonitors: [],
+      })
+      .accounts({
+        owner: owner.publicKey, agent: agent.publicKey,
+        policy: policyPda, spendTracker: trackerPda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([owner])
+      .rpc();
+
+    // Pause the agent
+    await program.methods
+      .pauseAgent({ reason: Buffer.from("Reviewing limits") })
+      .accounts({ caller: owner.publicKey, policy: policyPda })
+      .signers([owner])
+      .rpc();
+
+    // Update limits WHILE paused — lower per-tx to 50k
+    await program.methods
+      .updatePolicy({
+        allowedPrograms: null,
+        maxTxLamports: new BN(50_000),
+        maxTxTokenUnits: null, dailyBudgetLamports: null,
+        sessionExpiry: null, squadsMultisig: null, escalationThreshold: null,
+        authorizedMonitors: null, anomalyScore: null,
+      })
+      .accounts({ owner: owner.publicKey, policy: policyPda })
+      .signers([owner])
+      .rpc();
+
+    // Resume
+    await program.methods
+      .resumeAgent()
+      .accounts({ owner: owner.publicKey, policy: policyPda })
+      .signers([owner])
+      .rpc();
+
+    // Try 100k transfer → should fail with AmountExceedsLimit (new 50k limit)
+    const txData = buildSystemTransferData(100_000n);
+    try {
+      await program.methods
+        .guardedExecute({ instructionData: txData, amountHint: new BN(100_000) })
+        .accounts({
+          agent: agent.publicKey, policy: policyPda, spendTracker: trackerPda,
+          targetProgram: SystemProgram.programId, systemProgram: SystemProgram.programId,
+        })
+        .remainingAccounts([
+          { pubkey: policyPda, isWritable: true, isSigner: false },
+          { pubkey: Keypair.generate().publicKey, isWritable: true, isSigner: false },
+          { pubkey: SystemProgram.programId, isWritable: false, isSigner: false },
+        ])
+        .signers([agent])
+        .rpc();
+      expect.fail("Expected AmountExceedsLimit");
+    } catch (err: any) {
+      expect(err.toString()).to.include("AmountExceedsLimit");
+    }
+  });
 });
