@@ -7,6 +7,26 @@ import type {
   TransactionSummary,
   VerdictSummary,
 } from "@/lib/types/dashboard";
+const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+const USE_MOCK_API = process.env.NEXT_PUBLIC_USE_MOCK_API === "true" || !API_URL;
+export const apiMode = USE_MOCK_API ? "mock" : "http";
+
+async function getJson<T>(path: string): Promise<T> {
+  if (!API_URL) {
+    throw new Error("NEXT_PUBLIC_API_URL is not configured");
+  }
+
+  const response = await fetch(`${API_URL}${path}`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Request failed (${response.status})${body ? `: ${body}` : ""}`);
+  }
+
+  return response.json() as Promise<T>;
+}
 
 function buildVerdictMap(): Map<string, VerdictSummary> {
   return new Map(
@@ -83,7 +103,22 @@ export async function verifySiwsSignature(payload: {
 }
 
 export async function fetchPolicies(): Promise<PolicySummary[]> {
+  if (!USE_MOCK_API) {
+    return getJson<PolicySummary[]>("/api/policies");
+  }
   return sortPolicies(POLICIES);
+}
+
+export async function fetchPolicy(pubkey: string): Promise<PolicySummary> {
+  if (!USE_MOCK_API) {
+    return getJson<PolicySummary>(`/api/policies/${pubkey}`);
+  }
+
+  const policy = POLICIES.find((item) => item.pubkey === pubkey);
+  if (!policy) {
+    throw new Error("Policy not found");
+  }
+  return policy;
 }
 
 export async function fetchTransactions(
@@ -91,6 +126,14 @@ export async function fetchTransactions(
   before?: string,
   limit = 50,
 ): Promise<PaginatedResponse<TransactionSummary>> {
+  if (!USE_MOCK_API) {
+    const params = new URLSearchParams();
+    if (policyPubkey) params.set("policy", policyPubkey);
+    if (before) params.set("before", before);
+    if (limit) params.set("limit", String(limit));
+    return getJson<PaginatedResponse<TransactionSummary>>(`/api/transactions?${params.toString()}`);
+  }
+
   const filtered = sortTransactions(buildTransactions()).filter((transaction) =>
     policyPubkey ? transaction.policyPubkey === policyPubkey : true,
   );
@@ -102,6 +145,14 @@ export async function fetchIncidents(
   before?: string,
   limit = 25,
 ): Promise<PaginatedResponse<IncidentSummary>> {
+  if (!USE_MOCK_API) {
+    const params = new URLSearchParams();
+    if (policyPubkey) params.set("policy", policyPubkey);
+    if (before) params.set("before", before);
+    if (limit) params.set("limit", String(limit));
+    return getJson<PaginatedResponse<IncidentSummary>>(`/api/incidents?${params.toString()}`);
+  }
+
   const filtered = sortIncidents(INCIDENTS).filter((incident) =>
     policyPubkey ? incident.policyPubkey === policyPubkey : true,
   );
@@ -109,6 +160,10 @@ export async function fetchIncidents(
 }
 
 export async function fetchIncident(id: string): Promise<IncidentDetail> {
+  if (!USE_MOCK_API) {
+    return getJson<IncidentDetail>(`/api/incidents/${id}`);
+  }
+
   const incident = INCIDENTS.find((item) => item.id === id);
   if (!incident) {
     throw new Error("Incident not found");

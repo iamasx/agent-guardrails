@@ -38,8 +38,7 @@
 
 import { useEffect } from "react";
 
-// Phase 1 stub: keep a stable exported hook so providers compile
-// while full SSE cache patching is implemented in a later phase.
+// Phase 2-safe stub. Full event handling lands in Phase 3.
 export function useSSE(): void {
   useEffect(() => {
     return () => {

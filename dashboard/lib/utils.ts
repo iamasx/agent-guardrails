@@ -49,3 +49,8 @@ export function verdictTone(verdict?: string | null): "green" | "amber" | "red" 
   if (verdict === "allow") return "green";
   return "slate";
 }
+
+export function effectiveVerdict(verdict?: string | null): "allow" | "flag" | "pause" {
+  if (verdict === "flag" || verdict === "pause") return verdict;
+  return "allow";
+}

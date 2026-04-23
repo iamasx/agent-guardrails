@@ -3,20 +3,22 @@
 import { useQuery } from "@tanstack/react-query";
 import { AppShell, TransactionRow } from "@/components/dashboard-ui";
 import { fetchPolicies, fetchTransactions } from "@/lib/api/client";
+import { queryKeys } from "@/lib/api/query-keys";
 import { useActivityStore } from "@/lib/stores/activity";
 import type { PaginatedResponse, PolicySummary, TransactionSummary } from "@/lib/types/dashboard";
+import { effectiveVerdict } from "@/lib/utils";
 
 export default function ActivityPage() {
-  const { data: policies = [] } = useQuery<PolicySummary[]>({ queryKey: ["policies"], queryFn: fetchPolicies });
+  const { data: policies = [] } = useQuery<PolicySummary[]>({ queryKey: queryKeys.policies(), queryFn: fetchPolicies });
   const { data: transactions } = useQuery<PaginatedResponse<TransactionSummary>>({
-    queryKey: ["transactions"],
+    queryKey: queryKeys.transactions(),
     queryFn: () => fetchTransactions(),
   });
   const { selectedPolicyPubkey, verdictFilter, setSelectedPolicy, setVerdictFilter } = useActivityStore();
 
   const filtered = (transactions?.items ?? []).filter((txn: TransactionSummary) => {
     if (selectedPolicyPubkey && txn.policyPubkey !== selectedPolicyPubkey) return false;
-    if (verdictFilter !== "all" && txn.verdict?.verdict !== verdictFilter) return false;
+    if (verdictFilter !== "all" && effectiveVerdict(txn.verdict?.verdict) !== verdictFilter) return false;
     return true;
   });
 

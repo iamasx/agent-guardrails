@@ -52,6 +52,7 @@ vi.mock("@/lib/stores/activity", () => ({
 
 beforeEach(() => {
   useQueryMock.mockReset();
+  useQueryMock.mockReturnValue({ data: undefined, isLoading: false });
   pushMock.mockReset();
 });
 
@@ -63,19 +64,19 @@ describe("phase 1 route smoke tests", () => {
       .mockReturnValueOnce({ data: { items: TRANSACTIONS } })
       .mockReturnValueOnce({ data: { items: INCIDENTS } });
     render(createElement(Home));
-    expect(screen.getByText("Guardrails overview")).toBeInTheDocument();
+    expect(screen.getByText("Guardrails overview")).toBeTruthy();
     cleanup();
 
     const AgentsPage = (await import("@/app/agents/page")).default;
     useQueryMock.mockReturnValueOnce({ data: POLICIES });
     render(createElement(AgentsPage));
-    expect(screen.getByRole("heading", { name: "Agents" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Agents" })).toBeTruthy();
   });
 
   it("renders new, activity, and incidents routes", async () => {
     const NewAgentPage = (await import("@/app/agents/new/page")).default;
     render(createElement(NewAgentPage));
-    expect(screen.getByText("Create policy")).toBeInTheDocument();
+    expect(screen.getByText("Create policy")).toBeTruthy();
     cleanup();
 
     const ActivityPage = (await import("@/app/activity/page")).default;
@@ -83,38 +84,38 @@ describe("phase 1 route smoke tests", () => {
       .mockReturnValueOnce({ data: POLICIES })
       .mockReturnValueOnce({ data: { items: TRANSACTIONS.map((item, idx) => ({ ...item, verdict: VERDICTS[idx] ?? null })) } });
     render(createElement(ActivityPage));
-    expect(screen.getByText("Activity")).toBeInTheDocument();
+    expect(screen.getByText("Activity")).toBeTruthy();
     cleanup();
 
     const IncidentsPage = (await import("@/app/incidents/page")).default;
     useQueryMock.mockReturnValueOnce({ data: { items: INCIDENTS } });
     render(createElement(IncidentsPage));
-    expect(screen.getByText("Incidents")).toBeInTheDocument();
+    expect(screen.getByText("Incidents")).toBeTruthy();
   });
 
   it("renders signin, agent detail, policy edit, and incident detail routes", async () => {
     const SignInPage = (await import("@/app/(auth)/signin/page")).default;
     render(createElement(SignInPage));
-    expect(screen.getByText("Sign in")).toBeInTheDocument();
+    expect(screen.getByText("Sign in")).toBeTruthy();
     cleanup();
 
     const AgentDetailPage = (await import("@/app/agents/[pubkey]/page")).default;
     useQueryMock
-      .mockReturnValueOnce({ data: POLICIES })
+      .mockReturnValueOnce({ data: POLICIES[0] })
       .mockReturnValueOnce({ data: { items: TRANSACTIONS } })
       .mockReturnValueOnce({ data: { items: INCIDENTS } });
     render(createElement(AgentDetailPage, { params: { pubkey: POLICIES[0].pubkey } }));
-    expect(screen.getByRole("heading", { name: POLICIES[0].label as string })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: POLICIES[0].label as string })).toBeTruthy();
     cleanup();
 
     const EditPolicyPage = (await import("@/app/agents/[pubkey]/policy/page")).default;
     useQueryMock.mockReturnValueOnce({ data: POLICIES });
     render(createElement(EditPolicyPage, { params: { pubkey: POLICIES[0].pubkey } }));
-    expect(screen.getByText("Edit policy")).toBeInTheDocument();
+    expect(screen.getByText("Edit policy")).toBeTruthy();
     cleanup();
 
     const IncidentDetailPage = (await import("@/app/incidents/[id]/page")).default;
-    useQueryMock.mockReturnValueOnce({
+    useQueryMock.mockReturnValue({
       data: {
         ...INCIDENTS[0],
         policy: { pubkey: POLICIES[0].pubkey, label: POLICIES[0].label, isActive: POLICIES[0].isActive },
@@ -123,6 +124,6 @@ describe("phase 1 route smoke tests", () => {
       isLoading: false,
     });
     render(createElement(IncidentDetailPage, { params: { id: INCIDENTS[0].id } }));
-    expect(screen.getByText(POLICIES[0].label as string)).toBeInTheDocument();
+    expect(screen.getByText(POLICIES[0].label as string)).toBeTruthy();
   });
 });

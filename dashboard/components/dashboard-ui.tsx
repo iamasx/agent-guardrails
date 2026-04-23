@@ -4,8 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { RadialBar, RadialBarChart, ResponsiveContainer } from "recharts";
 import type { ReactNode } from "react";
-import { policyLabel, programLabel, shortAddress, formatDateTime, formatRelativeTime, lamportsToSol, statusTone, verdictTone } from "@/lib/utils";
+import {
+  effectiveVerdict,
+  policyLabel,
+  programLabel,
+  shortAddress,
+  formatDateTime,
+  formatRelativeTime,
+  lamportsToSol,
+  statusTone,
+  verdictTone,
+} from "@/lib/utils";
 import type { IncidentSummary, PolicySummary, TransactionSummary } from "@/lib/types/dashboard";
+import { useUIStore } from "@/lib/stores/ui";
 import { WalletControls } from "./wallet-controls";
 
 export function AppShell({
@@ -20,6 +31,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const { sidebarOpen, toggleSidebar } = useUIStore();
   const links = [
     { href: "/", label: "Overview" },
     { href: "/agents", label: "Agents" },
@@ -30,7 +42,7 @@ export function AppShell({
 
   return (
     <div className="shell">
-      <aside className="sidebar">
+      <aside className="sidebar" style={{ display: sidebarOpen ? "block" : "none" }}>
         <div className="brand">
           <div className="brand-mark">G</div>
           <div className="brand-copy">
@@ -53,6 +65,9 @@ export function AppShell({
             {subtitle ? <div className="page-subtitle">{subtitle}</div> : null}
           </div>
           <div className="toolbar">
+            <button className="button button-secondary" type="button" onClick={toggleSidebar}>
+              {sidebarOpen ? "Hide nav" : "Show nav"}
+            </button>
             {actions}
             <WalletControls />
           </div>
@@ -159,14 +174,14 @@ export function TransactionRow({
   transaction: TransactionSummary;
   showAgent?: boolean;
 }) {
-  const tone = verdictTone(transaction.verdict?.verdict);
-  const toneLabel = tone === "slate" ? "allow" : transaction.verdict?.verdict ?? transaction.status;
+  const verdict = effectiveVerdict(transaction.verdict?.verdict);
+  const tone = verdictTone(verdict);
   return (
     <div className="row-card">
       <div className="row-main">
         <div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <StatusChip tone={tone === "slate" ? "green" : tone}>{String(toneLabel).toUpperCase()}</StatusChip>
+            <StatusChip tone={tone === "slate" ? "green" : tone}>{verdict.toUpperCase()}</StatusChip>
             <strong>{programLabel(transaction.targetProgram)}</strong>
             {showAgent ? <span className="muted">{policyLabel(transaction.policyPubkey)}</span> : null}
           </div>
