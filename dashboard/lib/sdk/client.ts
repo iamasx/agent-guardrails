@@ -25,12 +25,18 @@ import {
 } from "./types";
 
 // ---------------------------------------------------------------------------
-// Default program ID (from deploy keypair)
+// Resolve program ID from env vars (server: GUARDRAILS_PROGRAM_ID,
+// dashboard: NEXT_PUBLIC_GUARDRAILS_PROGRAM_ID) or require explicit param.
 // ---------------------------------------------------------------------------
 
-const DEFAULT_PROGRAM_ID = new PublicKey(
-  "ENzC6oJhL2bVELvRCZqN4JizFNPTCTfMR5Gz1YJb4u76"
-);
+function getEnvProgramId(): PublicKey | undefined {
+  const envId =
+    typeof process !== "undefined"
+      ? process.env.GUARDRAILS_PROGRAM_ID ??
+        process.env.NEXT_PUBLIC_GUARDRAILS_PROGRAM_ID
+      : undefined;
+  return envId ? new PublicKey(envId) : undefined;
+}
 
 // ---------------------------------------------------------------------------
 // Client
@@ -40,8 +46,19 @@ export class GuardrailsClient {
   readonly program: Program;
   readonly programId: PublicKey;
 
+  /**
+   * @param provider - Anchor provider (wallet + connection)
+   * @param programId - Program ID. If omitted, reads from GUARDRAILS_PROGRAM_ID
+   *   or NEXT_PUBLIC_GUARDRAILS_PROGRAM_ID env var.
+   */
   constructor(provider: AnchorProvider, programId?: PublicKey) {
-    this.programId = programId ?? DEFAULT_PROGRAM_ID;
+    const resolved = programId ?? getEnvProgramId();
+    if (!resolved) {
+      throw new Error(
+        "programId required: pass explicitly or set GUARDRAILS_PROGRAM_ID / NEXT_PUBLIC_GUARDRAILS_PROGRAM_ID env var",
+      );
+    }
+    this.programId = resolved;
     this.program = new Program(IDL as any, provider);
   }
 
