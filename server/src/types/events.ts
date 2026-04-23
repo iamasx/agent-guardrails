@@ -44,15 +44,16 @@ export interface EscalatedToSquadsEvent {
 // SSE event payloads (Server -> Dashboard via GET /api/events)
 // ---------------------------------------------------------------------------
 
-/** Payload for `new_transaction` SSE event. Full GuardedTxn DB row. */
+/** Payload for `new_transaction` SSE event. Full GuardedTxn DB row.
+ *  slot and amountLamports are serialized as strings (bigint is not JSON-safe). */
 export interface SSENewTransaction {
   id: string;
   policyPubkey: string;
   txnSig: string;
-  slot: bigint;
+  slot: string;
   blockTime: Date;
   targetProgram: string;
-  amountLamports: bigint | null;
+  amountLamports: string | null;
   status: string;
   rejectReason: string | null;
   rawEvent: unknown;

@@ -1,0 +1,10 @@
+process.env.PORT = "8080";
+process.env.SOLANA_RPC_URL = "https://test.rpc";
+process.env.GUARDRAILS_PROGRAM_ID = "TestProgramId11111111111111111111";
+process.env.MONITOR_KEYPAIR = Buffer.from(JSON.stringify(Array.from({ length: 64 }, (_, i) => i))).toString("base64");
+process.env.HELIUS_WEBHOOK_SECRET = "test-webhook-secret";
+process.env.ANTHROPIC_API_KEY = "test-anthropic-key";
+process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test";
+process.env.DIRECT_URL = "postgresql://test:test@localhost:5432/test";
+process.env.JWT_SECRET = "test-jwt-secret-at-least-32-chars-long!!";
+process.env.CORS_ORIGIN = "http://localhost:3000";
