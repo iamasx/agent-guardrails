@@ -165,8 +165,16 @@ jobs:
       - name: Setup IDL for tests
         run: mkdir -p program/target/idl && cp sdk/idl/guardrails.json program/target/idl/
 
+      # LiteSVM's native addon can OOM or crash during cleanup on CI runners
+      # (7 GB RAM). Add swap as overflow safety net.
+      - name: Add swap space
+        uses: pierotofy/set-swap-space@v1.0
+        with:
+          swap-size-gb: 10
+
       # Run tests directly (not via `anchor test` which rebuilds IDL).
-      # The .so artifact is already downloaded from the build job.
+      # --max-old-space-size=6144: give Node.js more heap for LiteSVM's in-process VM
+      # --exit: force immediate exit after tests, bypassing native addon destructor crash
       - name: Test
         working-directory: program
-        run: node --import tsx/esm node_modules/mocha/bin/mocha.js -t 1000000 'tests/**/*.ts'
+        run: node --max-old-space-size=6144 --import tsx/esm node_modules/mocha/bin/mocha.js -t 1000000 --exit 'tests/**/*.ts'
