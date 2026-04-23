@@ -2,8 +2,9 @@
 
 // Standard deps imported directly from packages
 import { BN } from "@coral-xyz/anchor";
-import { Keypair, SystemProgram } from "@solana/web3.js";
+import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import { expect } from "chai";
+import { Clock } from "litesvm";
 
 // Setup + helpers from helpers.ts
 import { svm, program, findPolicyPda, findTrackerPda, defaultSessionExpiry } from "./helpers.js";
@@ -161,5 +162,158 @@ describe("update_policy", () => {
     } catch (err: any) {
       expect(err.toString()).to.include("TooManyAllowedPrograms");
     }
+  });
+
+  it("fails when updating session_expiry to a past timestamp", async () => {
+    const [policyPda] = findPolicyPda(owner.publicKey, agent.publicKey);
+
+    // Get current clock time and set expiry to 100 seconds before it
+    const currentClock = svm.getClock();
+    const pastExpiry = new BN(Number(currentClock.unixTimestamp) - 100);
+
+    try {
+      await program.methods
+        .updatePolicy({
+          allowedPrograms: null,
+          maxTxLamports: null,
+          maxTxTokenUnits: null,
+          dailyBudgetLamports: null,
+          sessionExpiry: pastExpiry,
+          squadsMultisig: null,
+          escalationThreshold: null,
+          authorizedMonitors: null,
+          anomalyScore: null,
+        })
+        .accounts({
+          owner: owner.publicKey,
+          policy: policyPda,
+        })
+        .signers([owner])
+        .rpc();
+
+      expect.fail("Expected SessionExpiryInPast error");
+    } catch (err: any) {
+      expect(err.toString()).to.include("SessionExpiryInPast");
+    }
+  });
+
+  it("fails when updating authorized_monitors above max (3)", async () => {
+    const [policyPda] = findPolicyPda(owner.publicKey, agent.publicKey);
+
+    // 4 monitors exceeds MAX_AUTHORIZED_MONITORS = 3
+    const tooManyMonitors = Array.from({ length: 4 }, () =>
+      Keypair.generate().publicKey
+    );
+
+    try {
+      await program.methods
+        .updatePolicy({
+          allowedPrograms: null,
+          maxTxLamports: null,
+          maxTxTokenUnits: null,
+          dailyBudgetLamports: null,
+          sessionExpiry: null,
+          squadsMultisig: null,
+          escalationThreshold: null,
+          authorizedMonitors: tooManyMonitors,
+          anomalyScore: null,
+        })
+        .accounts({
+          owner: owner.publicKey,
+          policy: policyPda,
+        })
+        .signers([owner])
+        .rpc();
+
+      expect.fail("Expected TooManyMonitors error");
+    } catch (err: any) {
+      expect(err.toString()).to.include("TooManyMonitors");
+    }
+  });
+
+  it("fails when daily_budget_lamports is updated below existing max_tx_lamports", async () => {
+    const [policyPda] = findPolicyPda(owner.publicKey, agent.publicKey);
+
+    // The first test updated this policy to max_tx=2 SOL, daily=10 SOL.
+    // Setting daily_budget to 1 SOL (< 2 SOL max_tx) should trigger coherence check.
+    try {
+      await program.methods
+        .updatePolicy({
+          allowedPrograms: null,
+          maxTxLamports: null,
+          maxTxTokenUnits: null,
+          dailyBudgetLamports: new BN(1_000_000_000), // 1 SOL < 2 SOL max_tx
+          sessionExpiry: null,
+          squadsMultisig: null,
+          escalationThreshold: null,
+          authorizedMonitors: null,
+          anomalyScore: null,
+        })
+        .accounts({
+          owner: owner.publicKey,
+          policy: policyPda,
+        })
+        .signers([owner])
+        .rpc();
+
+      expect.fail("Expected TxLimitExceedsDailyBudget error");
+    } catch (err: any) {
+      expect(err.toString()).to.include("TxLimitExceedsDailyBudget");
+    }
+  });
+
+  it("clears squads_multisig when updated with Pubkey::default()", async () => {
+    const [policyPda] = findPolicyPda(owner.publicKey, agent.publicKey);
+
+    // First, set squads_multisig to some pubkey
+    const someMultisig = Keypair.generate().publicKey;
+    await program.methods
+      .updatePolicy({
+        allowedPrograms: null,
+        maxTxLamports: null,
+        maxTxTokenUnits: null,
+        dailyBudgetLamports: null,
+        sessionExpiry: null,
+        squadsMultisig: someMultisig,
+        escalationThreshold: null,
+        authorizedMonitors: null,
+        anomalyScore: null,
+      })
+      .accounts({
+        owner: owner.publicKey,
+        policy: policyPda,
+      })
+      .signers([owner])
+      .rpc();
+
+    // Verify it was set
+    let policy = await program.account.permissionPolicy.fetch(policyPda);
+    expect(policy.squadsMultisig).to.not.be.null;
+    expect(policy.squadsMultisig.toBase58()).to.equal(someMultisig.toBase58());
+
+    // Now clear it using Pubkey::default() (all zeros)
+    const defaultPubkey = new PublicKey(new Uint8Array(32));
+    await program.methods
+      .updatePolicy({
+        allowedPrograms: null,
+        maxTxLamports: null,
+        maxTxTokenUnits: null,
+        dailyBudgetLamports: null,
+        sessionExpiry: null,
+        squadsMultisig: defaultPubkey,
+        escalationThreshold: null,
+        authorizedMonitors: null,
+        anomalyScore: null,
+      })
+      .accounts({
+        owner: owner.publicKey,
+        policy: policyPda,
+      })
+      .signers([owner])
+      .rpc();
+
+    // Verify it was cleared to null
+    policy = await program.account.permissionPolicy.fetch(policyPda);
+    expect(policy.squadsMultisig).to.be.null;
   });
 });

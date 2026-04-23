@@ -2,8 +2,9 @@
 
 // Standard deps imported directly from packages
 import { BN } from "@coral-xyz/anchor";
-import { Keypair, SystemProgram } from "@solana/web3.js";
+import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import { expect } from "chai";
+import { Clock } from "litesvm";
 
 // Setup + helpers from helpers.ts
 import { svm, program, findPolicyPda, findTrackerPda, defaultSessionExpiry } from "./helpers.js";
@@ -199,6 +200,135 @@ describe("initialize_policy", () => {
       expect.fail("Expected TxLimitExceedsDailyBudget error");
     } catch (err: any) {
       expect(err.toString()).to.include("TxLimitExceedsDailyBudget");
+    }
+  });
+
+  it("fails when authorized_monitors exceeds max (3)", async () => {
+    const freshAgent = Keypair.generate();
+    const [policyPda] = findPolicyPda(owner.publicKey, freshAgent.publicKey);
+    const [trackerPda] = findTrackerPda(policyPda);
+
+    // 4 monitors exceeds MAX_AUTHORIZED_MONITORS = 3
+    const tooManyMonitors = Array.from({ length: 4 }, () =>
+      Keypair.generate().publicKey
+    );
+
+    try {
+      await program.methods
+        .initializePolicy({
+          allowedPrograms: defaultAllowedPrograms,
+          maxTxLamports: defaultMaxTxLamports,
+          maxTxTokenUnits: defaultMaxTxTokenUnits,
+          dailyBudgetLamports: defaultDailyBudgetLamports,
+          sessionExpiry: defaultSessionExpiry,
+          squadsMultisig: null,
+          escalationThreshold: defaultEscalationThreshold,
+          authorizedMonitors: tooManyMonitors,
+        })
+        .accounts({
+          owner: owner.publicKey,
+          agent: freshAgent.publicKey,
+          policy: policyPda,
+          spendTracker: trackerPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([owner])
+        .rpc();
+
+      expect.fail("Expected TooManyMonitors error");
+    } catch (err: any) {
+      expect(err.toString()).to.include("TooManyMonitors");
+    }
+  });
+
+  it("fails when session_expiry is in the past", async () => {
+    const freshAgent = Keypair.generate();
+    const [policyPda] = findPolicyPda(owner.publicKey, freshAgent.publicKey);
+    const [trackerPda] = findTrackerPda(policyPda);
+
+    // Get current clock time and set expiry to 100 seconds before it
+    const currentClock = svm.getClock();
+    const pastExpiry = new BN(Number(currentClock.unixTimestamp) - 100);
+
+    try {
+      await program.methods
+        .initializePolicy({
+          allowedPrograms: defaultAllowedPrograms,
+          maxTxLamports: defaultMaxTxLamports,
+          maxTxTokenUnits: defaultMaxTxTokenUnits,
+          dailyBudgetLamports: defaultDailyBudgetLamports,
+          sessionExpiry: pastExpiry,
+          squadsMultisig: null,
+          escalationThreshold: defaultEscalationThreshold,
+          authorizedMonitors: [],
+        })
+        .accounts({
+          owner: owner.publicKey,
+          agent: freshAgent.publicKey,
+          policy: policyPda,
+          spendTracker: trackerPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([owner])
+        .rpc();
+
+      expect.fail("Expected SessionExpiryInPast error");
+    } catch (err: any) {
+      expect(err.toString()).to.include("SessionExpiryInPast");
+    }
+  });
+
+  it("initializes SpendTracker with correct defaults (windowStart > 0, lastTxnTs == 0, lastTxnProgram all zeros)", async () => {
+    const freshAgent = Keypair.generate();
+    const [policyPda] = findPolicyPda(owner.publicKey, freshAgent.publicKey);
+    const [trackerPda] = findTrackerPda(policyPda);
+
+    // Warp clock to a realistic timestamp so windowStart will be > 0
+    const savedClock = svm.getClock();
+    const realisticTimestamp = BigInt(Math.floor(Date.now() / 1000));
+    svm.setClock(new Clock(
+      savedClock.slot + 1n,
+      savedClock.epochStartTimestamp,
+      savedClock.epoch,
+      savedClock.leaderScheduleEpoch,
+      realisticTimestamp,
+    ));
+
+    try {
+      await program.methods
+        .initializePolicy({
+          allowedPrograms: defaultAllowedPrograms,
+          maxTxLamports: defaultMaxTxLamports,
+          maxTxTokenUnits: defaultMaxTxTokenUnits,
+          dailyBudgetLamports: defaultDailyBudgetLamports,
+          sessionExpiry: defaultSessionExpiry,
+          squadsMultisig: null,
+          escalationThreshold: defaultEscalationThreshold,
+          authorizedMonitors: [],
+        })
+        .accounts({
+          owner: owner.publicKey,
+          agent: freshAgent.publicKey,
+          policy: policyPda,
+          spendTracker: trackerPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([owner])
+        .rpc();
+
+      const tracker = await program.account.spendTracker.fetch(trackerPda);
+
+      // windowStart should be set to the clock timestamp at init time (> 0)
+      expect(tracker.windowStart.toNumber()).to.be.greaterThan(0);
+
+      // lastTxnTs should be 0 (no transactions yet)
+      expect(tracker.lastTxnTs.toNumber()).to.equal(0);
+
+      // lastTxnProgram should be Pubkey::default() (all zeros)
+      const defaultPubkey = new PublicKey(new Uint8Array(32));
+      expect(tracker.lastTxnProgram.toBase58()).to.equal(defaultPubkey.toBase58());
+    } finally {
+      svm.setClock(savedClock);
     }
   });
 });

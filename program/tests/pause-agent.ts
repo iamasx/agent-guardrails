@@ -145,6 +145,84 @@ describe("pause_agent", () => {
     }
   });
 
+  it("re-pausing an already paused agent succeeds with new reason", async () => {
+    // The policy was paused by the monitor in the previous test.
+    // Pause again with a different reason — should succeed (no error),
+    // and the new reason should overwrite the old one.
+    const newReason = Buffer.from("Second pause: re-evaluation");
+
+    await program.methods
+      .pauseAgent({ reason: newReason })
+      .accounts({
+        caller: pauseOwner.publicKey,
+        policy: pausePolicyPda,
+      })
+      .signers([pauseOwner])
+      .rpc();
+
+    const policy = await program.account.permissionPolicy.fetch(pausePolicyPda);
+    expect(policy.isActive).to.be.false;
+    expect(policy.pausedBy.toBase58()).to.equal(pauseOwner.publicKey.toBase58());
+
+    // Verify the new reason was stored (not the old one)
+    const storedReason = Buffer.from(policy.pausedReason);
+    expect(storedReason.subarray(0, newReason.length).toString()).to.equal(
+      newReason.toString()
+    );
+  });
+
+  it("truncates reason at 64 bytes without error", async () => {
+    // Use a fresh policy to avoid state dependencies
+    const truncOwner = Keypair.generate();
+    const truncAgent = Keypair.generate();
+    svm.airdrop(truncOwner.publicKey, 10_000_000_000n);
+
+    const [truncPolicyPda] = findPolicyPda(truncOwner.publicKey, truncAgent.publicKey);
+    const [truncTrackerPda] = findTrackerPda(truncPolicyPda);
+
+    await program.methods
+      .initializePolicy({
+        allowedPrograms: [SystemProgram.programId],
+        maxTxLamports: new BN(1_000_000_000),
+        maxTxTokenUnits: new BN(1_000_000),
+        dailyBudgetLamports: new BN(5_000_000_000),
+        sessionExpiry: defaultSessionExpiry,
+        squadsMultisig: null,
+        escalationThreshold: new BN(2_000_000_000),
+        authorizedMonitors: [],
+      })
+      .accounts({
+        owner: truncOwner.publicKey,
+        agent: truncAgent.publicKey,
+        policy: truncPolicyPda,
+        spendTracker: truncTrackerPda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([truncOwner])
+      .rpc();
+
+    // 80-byte reason — exceeds the 64-byte field
+    const longReason = Buffer.alloc(80, 0x41); // 80 bytes of 'A'
+
+    await program.methods
+      .pauseAgent({ reason: longReason })
+      .accounts({
+        caller: truncOwner.publicKey,
+        policy: truncPolicyPda,
+      })
+      .signers([truncOwner])
+      .rpc();
+
+    const policy = await program.account.permissionPolicy.fetch(truncPolicyPda);
+    expect(policy.isActive).to.be.false;
+
+    // Verify only first 64 bytes were stored
+    const storedReason = Buffer.from(policy.pausedReason);
+    expect(storedReason.length).to.equal(64);
+    // All 64 bytes should be 0x41 ('A')
+    expect(storedReason.every((b: number) => b === 0x41)).to.be.true;
+  });
+
   it("paused policy rejects guarded_execute with PolicyPaused", async () => {
     // Pause the policy
     await program.methods

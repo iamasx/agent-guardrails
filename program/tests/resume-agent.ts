@@ -88,6 +88,55 @@ describe("resume_agent", () => {
     }
   });
 
+  it("resume when not paused is idempotent (no error)", async () => {
+    // Create a fresh policy that starts active (is_active = true).
+    // Calling resume on an already-active policy should succeed with no error.
+    const idempotentOwner = Keypair.generate();
+    const idempotentAgent = Keypair.generate();
+    svm.airdrop(idempotentOwner.publicKey, 10_000_000_000n);
+
+    const [idempotentPolicyPda] = findPolicyPda(
+      idempotentOwner.publicKey,
+      idempotentAgent.publicKey
+    );
+    const [idempotentTrackerPda] = findTrackerPda(idempotentPolicyPda);
+
+    await program.methods
+      .initializePolicy({
+        allowedPrograms: [SystemProgram.programId],
+        maxTxLamports: new BN(1_000_000_000),
+        maxTxTokenUnits: new BN(1_000_000),
+        dailyBudgetLamports: new BN(5_000_000_000),
+        sessionExpiry: defaultSessionExpiry,
+        squadsMultisig: null,
+        escalationThreshold: new BN(2_000_000_000),
+        authorizedMonitors: [],
+      })
+      .accounts({
+        owner: idempotentOwner.publicKey,
+        agent: idempotentAgent.publicKey,
+        policy: idempotentPolicyPda,
+        spendTracker: idempotentTrackerPda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([idempotentOwner])
+      .rpc();
+
+    // Policy starts active — resume should be a no-op
+    await program.methods
+      .resumeAgent()
+      .accounts({
+        owner: idempotentOwner.publicKey,
+        policy: idempotentPolicyPda,
+      })
+      .signers([idempotentOwner])
+      .rpc();
+
+    const policy = await program.account.permissionPolicy.fetch(idempotentPolicyPda);
+    expect(policy.isActive).to.be.true;
+    expect(policy.pausedBy).to.be.null;
+  });
+
   it("random caller cannot resume a paused agent", async () => {
     const attacker = Keypair.generate();
     svm.airdrop(attacker.publicKey, 1_000_000_000n);

@@ -163,6 +163,208 @@ describe("guarded_execute", () => {
     }
   });
 
+  it("passes validation when amount is below escalation threshold (no EscalatedToMultisig)", async () => {
+    // Create a policy with squads_multisig set and a high threshold.
+    // A transfer below the threshold should NOT trigger escalation.
+    // It will fail at CPI (System Program transfer from PDA without proper accounts)
+    // but the error should be CpiExecutionFailed, NOT EscalatedToMultisig.
+    const belowEscOwner = Keypair.generate();
+    const belowEscAgent = Keypair.generate();
+    svm.airdrop(belowEscOwner.publicKey, 10_000_000_000n);
+    svm.airdrop(belowEscAgent.publicKey, 2_000_000_000n);
+
+    const squadsMultisig = Keypair.generate().publicKey;
+
+    const [bePolicyPda] = findPolicyPda(belowEscOwner.publicKey, belowEscAgent.publicKey);
+    const [beTrackerPda] = findTrackerPda(bePolicyPda);
+
+    await program.methods
+      .initializePolicy({
+        allowedPrograms: [SystemProgram.programId],
+        maxTxLamports: new BN(1_000_000_000), // 1 SOL
+        maxTxTokenUnits: new BN(1_000_000),
+        dailyBudgetLamports: new BN(5_000_000_000), // 5 SOL
+        sessionExpiry: defaultSessionExpiry,
+        squadsMultisig: squadsMultisig,
+        escalationThreshold: new BN(500_000), // 500k lamports
+        authorizedMonitors: [],
+      })
+      .accounts({
+        owner: belowEscOwner.publicKey,
+        agent: belowEscAgent.publicKey,
+        policy: bePolicyPda,
+        spendTracker: beTrackerPda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([belowEscOwner])
+      .rpc();
+
+    svm.airdrop(bePolicyPda, 5_000_000_000n);
+
+    // Transfer 100k (below 500k threshold) -- should NOT escalate
+    const txData = buildSystemTransferData(100_000n);
+    try {
+      await program.methods
+        .guardedExecute({
+          instructionData: txData,
+          amountHint: new BN(100_000),
+        })
+        .accounts({
+          agent: belowEscAgent.publicKey,
+          policy: bePolicyPda,
+          spendTracker: beTrackerPda,
+          targetProgram: SystemProgram.programId,
+          systemProgram: SystemProgram.programId,
+        })
+        .remainingAccounts([
+          { pubkey: bePolicyPda, isWritable: true, isSigner: false },
+          { pubkey: destination.publicKey, isWritable: true, isSigner: false },
+          { pubkey: SystemProgram.programId, isWritable: false, isSigner: false },
+        ])
+        .signers([belowEscAgent])
+        .rpc();
+
+      // If it succeeds, that is fine -- no escalation happened
+    } catch (err: any) {
+      // If it fails, the error must NOT be EscalatedToMultisig.
+      // CpiExecutionFailed or other errors are acceptable.
+      expect(err.toString()).to.not.include("EscalatedToMultisig");
+    }
+  });
+
+  it("passes validation when amount equals per-tx limit exactly (boundary)", async () => {
+    // Create a policy with max_tx = 300k. Transferring exactly 300k should
+    // pass the per-tx check (<=), not fail with AmountExceedsLimit.
+    const boundaryOwner = Keypair.generate();
+    const boundaryAgent = Keypair.generate();
+    svm.airdrop(boundaryOwner.publicKey, 10_000_000_000n);
+    svm.airdrop(boundaryAgent.publicKey, 2_000_000_000n);
+
+    const [bPolicyPda] = findPolicyPda(boundaryOwner.publicKey, boundaryAgent.publicKey);
+    const [bTrackerPda] = findTrackerPda(bPolicyPda);
+
+    await program.methods
+      .initializePolicy({
+        allowedPrograms: [SystemProgram.programId],
+        maxTxLamports: new BN(300_000), // 300k per tx
+        maxTxTokenUnits: new BN(1_000_000),
+        dailyBudgetLamports: new BN(5_000_000_000), // 5 SOL daily
+        sessionExpiry: defaultSessionExpiry,
+        squadsMultisig: null,
+        escalationThreshold: new BN(10_000_000_000),
+        authorizedMonitors: [],
+      })
+      .accounts({
+        owner: boundaryOwner.publicKey,
+        agent: boundaryAgent.publicKey,
+        policy: bPolicyPda,
+        spendTracker: bTrackerPda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([boundaryOwner])
+      .rpc();
+
+    svm.airdrop(bPolicyPda, 5_000_000_000n);
+
+    // Transfer exactly 300k (== max_tx_lamports) -- should pass validation
+    const txData = buildSystemTransferData(300_000n);
+    try {
+      await program.methods
+        .guardedExecute({
+          instructionData: txData,
+          amountHint: new BN(300_000),
+        })
+        .accounts({
+          agent: boundaryAgent.publicKey,
+          policy: bPolicyPda,
+          spendTracker: bTrackerPda,
+          targetProgram: SystemProgram.programId,
+          systemProgram: SystemProgram.programId,
+        })
+        .remainingAccounts([
+          { pubkey: bPolicyPda, isWritable: true, isSigner: false },
+          { pubkey: destination.publicKey, isWritable: true, isSigner: false },
+          { pubkey: SystemProgram.programId, isWritable: false, isSigner: false },
+        ])
+        .signers([boundaryAgent])
+        .rpc();
+
+      // If it succeeds, the boundary check passed
+    } catch (err: any) {
+      // Should NOT fail with AmountExceedsLimit since 300k <= 300k
+      expect(err.toString()).to.not.include("AmountExceedsLimit");
+    }
+  });
+
+  it("trusts amount_hint for unknown programs (no AmountMismatch)", async () => {
+    // Create a policy with a random program whitelisted. Call guarded_execute
+    // targeting that program with arbitrary instruction data and amount_hint=0.
+    // The amount parsing should fall through to the "unknown program" branch
+    // and trust the hint. It will fail at CPI since the program does not exist,
+    // but it must NOT fail with AmountMismatch.
+    const unknownOwner = Keypair.generate();
+    const unknownAgent = Keypair.generate();
+    const fakeProgram = Keypair.generate();
+    svm.airdrop(unknownOwner.publicKey, 10_000_000_000n);
+    svm.airdrop(unknownAgent.publicKey, 2_000_000_000n);
+
+    const [uPolicyPda] = findPolicyPda(unknownOwner.publicKey, unknownAgent.publicKey);
+    const [uTrackerPda] = findTrackerPda(uPolicyPda);
+
+    await program.methods
+      .initializePolicy({
+        allowedPrograms: [fakeProgram.publicKey],
+        maxTxLamports: new BN(1_000_000_000),
+        maxTxTokenUnits: new BN(1_000_000),
+        dailyBudgetLamports: new BN(5_000_000_000),
+        sessionExpiry: defaultSessionExpiry,
+        squadsMultisig: null,
+        escalationThreshold: new BN(10_000_000_000),
+        authorizedMonitors: [],
+      })
+      .accounts({
+        owner: unknownOwner.publicKey,
+        agent: unknownAgent.publicKey,
+        policy: uPolicyPda,
+        spendTracker: uTrackerPda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([unknownOwner])
+      .rpc();
+
+    svm.airdrop(uPolicyPda, 5_000_000_000n);
+
+    // Arbitrary instruction data that does not match System/Token format
+    const arbitraryData = Buffer.from([0xff, 0xab, 0x01, 0x02, 0x03, 0x04]);
+    try {
+      await program.methods
+        .guardedExecute({
+          instructionData: arbitraryData,
+          amountHint: new BN(0),
+        })
+        .accounts({
+          agent: unknownAgent.publicKey,
+          policy: uPolicyPda,
+          spendTracker: uTrackerPda,
+          targetProgram: fakeProgram.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .remainingAccounts([
+          { pubkey: uPolicyPda, isWritable: true, isSigner: false },
+          { pubkey: destination.publicKey, isWritable: true, isSigner: false },
+          { pubkey: fakeProgram.publicKey, isWritable: false, isSigner: false },
+        ])
+        .signers([unknownAgent])
+        .rpc();
+
+      // If it succeeds, amount_hint was trusted
+    } catch (err: any) {
+      // Should NOT fail with AmountMismatch or ProgramNotWhitelisted
+      expect(err.toString()).to.not.include("AmountMismatch");
+      expect(err.toString()).to.not.include("ProgramNotWhitelisted");
+    }
+  });
+
   // NOTE: DailyBudgetExceeded requires cumulative spending from prior
   // successful CPIs. Tested when Token Program CPI is integrated.
 
