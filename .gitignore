@@ -37,3 +37,5 @@ Thumbs.db
 # Rust
 program/target/
 
+#dashboard
+dashboard/phases.md

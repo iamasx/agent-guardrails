@@ -33,3 +33,17 @@
 //   ["incidents", policyPubkey]     — filtered (agent detail)
 //   ["policies"]                    — all user's policies (agents list)
 //   ["policy", pubkey]              — single on-chain policy (agent detail)
+
+"use client";
+
+import { useEffect } from "react";
+
+// Phase 1 stub: keep a stable exported hook so providers compile
+// while full SSE cache patching is implemented in a later phase.
+export function useSSE(): void {
+  useEffect(() => {
+    return () => {
+      // no-op cleanup
+    };
+  }, []);
+}
