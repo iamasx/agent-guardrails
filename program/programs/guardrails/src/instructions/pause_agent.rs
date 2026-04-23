@@ -63,10 +63,7 @@ pub fn handler(ctx: Context<PauseAgent>, args: PauseAgentArgs) -> Result<()> {
     let is_owner = caller_key == policy.owner;
     let is_monitor = policy.authorized_monitors.contains(&caller_key);
 
-    require!(
-        is_owner || is_monitor,
-        GuardrailsError::UnauthorizedPauser
-    );
+    require!(is_owner || is_monitor, GuardrailsError::UnauthorizedPauser);
 
     // --- Apply pause state ---
     policy.is_active = false;
