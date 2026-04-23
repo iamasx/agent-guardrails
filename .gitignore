@@ -37,3 +37,8 @@ Thumbs.db
 # Rust
 program/target/
 
+<<<<<<< Updated upstream
+=======
+# dashboard docs snapshot (local working notes)
+dashboard/PHASES.md
+>>>>>>> Stashed changes

@@ -33,3 +33,16 @@
 //   ["incidents", policyPubkey]     — filtered (agent detail)
 //   ["policies"]                    — all user's policies (agents list)
 //   ["policy", pubkey]              — single on-chain policy (agent detail)
+
+"use client";
+
+import { useEffect } from "react";
+
+// Phase 2-safe stub. Full event handling lands in Phase 3.
+export function useSSE(): void {
+  useEffect(() => {
+    return () => {
+      // no-op cleanup
+    };
+  }, []);
+}
