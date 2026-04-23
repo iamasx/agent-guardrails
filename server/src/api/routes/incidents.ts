@@ -13,8 +13,10 @@ incidentsRouter.get("/", async (req, res) => {
   try {
     const { walletPubkey } = req as AuthenticatedRequest;
 
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
-    const offset = parseInt(req.query.offset as string) || 0;
+    const rawLimit = Number.parseInt(req.query.limit as string, 10);
+    const rawOffset = Number.parseInt(req.query.offset as string, 10);
+    const limit = Number.isNaN(rawLimit) ? 50 : Math.min(Math.max(rawLimit, 1), 100);
+    const offset = Number.isNaN(rawOffset) ? 0 : Math.max(rawOffset, 0);
 
     // Find policies owned by this wallet
     const ownedPolicies = await prisma.policy.findMany({
@@ -53,19 +55,16 @@ incidentsRouter.get("/:id", async (req, res) => {
   try {
     const walletPubkey = (req as unknown as AuthenticatedRequest).walletPubkey;
 
-    const incident = await prisma.incident.findUnique({
-      where: { id: req.params.id },
-      include: { judgeVerdict: true, policy: true },
+    const incident = await prisma.incident.findFirst({
+      where: {
+        id: req.params.id,
+        policy: { owner: walletPubkey },
+      },
+      include: { judgeVerdict: true },
     });
 
     if (!incident) {
       res.status(404).json({ error: "Incident not found" });
-      return;
-    }
-
-    // Verify the caller owns this policy
-    if (incident.policy.owner !== walletPubkey) {
-      res.status(403).json({ error: "Forbidden" });
       return;
     }
 

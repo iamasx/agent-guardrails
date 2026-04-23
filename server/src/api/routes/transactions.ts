@@ -11,8 +11,10 @@ transactionsRouter.get("/", async (req, res) => {
   try {
     const { walletPubkey } = req as AuthenticatedRequest;
 
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
-    const offset = parseInt(req.query.offset as string) || 0;
+    const rawLimit = Number.parseInt(req.query.limit as string, 10);
+    const rawOffset = Number.parseInt(req.query.offset as string, 10);
+    const limit = Number.isNaN(rawLimit) ? 50 : Math.min(Math.max(rawLimit, 1), 100);
+    const offset = Number.isNaN(rawOffset) ? 0 : Math.max(rawOffset, 0);
     const policyFilter = req.query.policy as string | undefined;
 
     // Find policies owned by this wallet

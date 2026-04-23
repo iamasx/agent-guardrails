@@ -20,8 +20,8 @@ interface JWTPayload {
  * Reads token from httpOnly cookie "token" or Authorization bearer header.
  */
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
-  // Skip auth for SIWS auth routes
-  if (req.path.startsWith("/auth/")) {
+  // Skip auth for SIWS auth routes and webhook
+  if (req.path === "/webhook" || req.path.startsWith("/auth/")) {
     next();
     return;
   }

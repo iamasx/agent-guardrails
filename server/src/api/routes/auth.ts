@@ -132,7 +132,7 @@ authRouter.post("/siws/verify", async (req, res) => {
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
 
-    res.json({ token });
+    res.json({ ok: true });
   } catch (err) {
     console.error("[auth/verify] error:", err);
     res.status(500).json({ error: "Internal server error" });
