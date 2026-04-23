@@ -24,7 +24,10 @@ import {
 const require = createRequire(import.meta.url);
 const IDL = require("../target/idl/guardrails.json");
 
-export const svm = fromWorkspace(".").withDefaultPrograms();
+// Note: don't use withDefaultPrograms() — it loads ALL SPL programs into the
+// in-process VM and causes std::bad_alloc on CI runners. System Program and
+// SPL Token are already available in the base LiteSVM instance.
+export const svm = fromWorkspace(".");
 export const provider = new LiteSVMProvider(svm);
 export const program = new Program(IDL, provider);
 
