@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SOLANA_VERSION: v1.18.26
+  SOLANA_VERSION: stable
   ANCHOR_VERSION: 0.30.1
 
 jobs:
@@ -80,11 +80,6 @@ jobs:
       - name: Install Anchor CLI
         run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
 
-      # Pre-install platform-tools v1.52 so cargo-build-sbf uses Cargo 1.89+
-      # which supports lockfile v4 and edition2024 crates
-      - name: Install platform-tools
-        run: cargo-build-sbf --install-only --tools-version v1.52
-
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -102,8 +97,12 @@ jobs:
         working-directory: program
         run: pnpm install
 
+      # RUSTC_BOOTSTRAP=1 enables proc_macro2::Span::source_file() which
+      # anchor-syn 0.30.1 requires during IDL generation
       - name: Build
         working-directory: program
+        env:
+          RUSTC_BOOTSTRAP: "1"
         run: anchor build
 
       - name: Upload build artifacts
@@ -140,9 +139,6 @@ jobs:
 
       - name: Install Anchor CLI
         run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
-
-      - name: Install platform-tools
-        run: cargo-build-sbf --install-only --tools-version v1.52
 
       - name: Cache Cargo
         uses: actions/cache@v4
