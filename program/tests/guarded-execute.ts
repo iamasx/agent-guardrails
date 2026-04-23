@@ -403,17 +403,17 @@ describe("guarded_execute", () => {
 
     svm.airdrop(ePolicyPda, 2_000_000_000n);
 
-    // Warp clock past session_expiry using Clock constructor
-    svm.setClock(new Clock(
-      currentClock.slot + 100n,
-      currentClock.epochStartTimestamp,
-      currentClock.epoch,
-      currentClock.leaderScheduleEpoch,
-      BigInt(shortExpiry.toNumber() + 100),
-    ));
-
-    const txData = buildSystemTransferData(100_000n);
+    // Warp clock past session_expiry, with clock restoration in finally
     try {
+      svm.setClock(new Clock(
+        currentClock.slot + 100n,
+        currentClock.epochStartTimestamp,
+        currentClock.epoch,
+        currentClock.leaderScheduleEpoch,
+        BigInt(shortExpiry.toNumber() + 100),
+      ));
+
+      const txData = buildSystemTransferData(100_000n);
       await program.methods
         .guardedExecute({
           instructionData: txData,
@@ -437,10 +437,9 @@ describe("guarded_execute", () => {
       expect.fail("Expected SessionExpired error");
     } catch (err: any) {
       expect(err.toString()).to.include("SessionExpired");
+    } finally {
+      svm.setClock(currentClock);
     }
-
-    // Reset clock for subsequent tests
-    svm.setClock(currentClock);
   });
 
   it("rejects with EscalatedToMultisig when amount > threshold and squads set", async () => {

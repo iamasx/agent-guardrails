@@ -103,6 +103,9 @@ describe("update_policy", () => {
 
     const [policyPda] = findPolicyPda(owner.publicKey, agent.publicKey);
 
+    // Capture state before the unauthorized attempt
+    const before = await program.account.permissionPolicy.fetch(policyPda);
+
     try {
       await program.methods
         .updatePolicy({
@@ -128,6 +131,10 @@ describe("update_policy", () => {
       // has_one constraint rejects because attacker.key != policy.owner
       expect(err).to.exist;
     }
+
+    // Verify policy state was NOT mutated by the failed attempt
+    const after = await program.account.permissionPolicy.fetch(policyPda);
+    expect(after.maxTxLamports.toString()).to.equal(before.maxTxLamports.toString());
   });
 
   it("fails when updating allowed_programs above max (10)", async () => {

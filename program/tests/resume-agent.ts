@@ -84,7 +84,10 @@ describe("resume_agent", () => {
 
       expect.fail("Expected ResumeRequiresOwner error");
     } catch (err: any) {
-      expect(err).to.exist;
+      const errStr = err.toString();
+      expect(
+        errStr.includes("ResumeRequiresOwner") || errStr.includes("ConstraintHasOne")
+      ).to.be.true;
     }
   });
 
@@ -150,7 +153,10 @@ describe("resume_agent", () => {
 
       expect.fail("Expected resume to fail for non-owner");
     } catch (err: any) {
-      expect(err).to.exist;
+      const errStr = err.toString();
+      expect(
+        errStr.includes("ResumeRequiresOwner") || errStr.includes("ConstraintHasOne")
+      ).to.be.true;
     }
   });
 });

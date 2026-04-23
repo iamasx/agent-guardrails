@@ -108,7 +108,12 @@ export async function mintTestTokens(
 // Instruction data builders
 // ---------------------------------------------------------------------------
 
+const U64_MAX = (1n << 64n) - 1n;
+
 export function buildSystemTransferData(lamports: bigint): Buffer {
+  if (lamports < 0n || lamports > U64_MAX) {
+    throw new RangeError(`lamports must be a valid u64, got ${lamports}`);
+  }
   const buf = Buffer.alloc(12);
   buf.writeUInt32LE(2, 0);
   buf.writeBigUInt64LE(lamports, 4);
@@ -116,6 +121,9 @@ export function buildSystemTransferData(lamports: bigint): Buffer {
 }
 
 export function buildTokenTransferData(amount: bigint): Buffer {
+  if (amount < 0n || amount > U64_MAX) {
+    throw new RangeError(`amount must be a valid u64, got ${amount}`);
+  }
   const buf = Buffer.alloc(9);
   buf.writeUInt8(3, 0);
   buf.writeBigUInt64LE(amount, 1);
@@ -126,6 +134,11 @@ export function getTokenBalance(tokenAccount: PublicKey): bigint {
   const accountInfo = svm.getAccount(tokenAccount);
   if (!accountInfo) throw new Error(`Token account ${tokenAccount.toBase58()} not found`);
   const data = Buffer.from(accountInfo.data);
+  if (data.length < 72) {
+    throw new Error(
+      `Invalid token account data for ${tokenAccount.toBase58()}: expected >= 72 bytes, got ${data.length}`,
+    );
+  }
   return data.readBigUInt64LE(64);
 }
 
