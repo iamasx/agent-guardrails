@@ -151,9 +151,11 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm
 
+      # --force ensures platform-specific native binaries (litesvm-linux-x64-gnu)
+      # are installed even if lockfile was generated on macOS
       - name: Install dependencies
         working-directory: program
-        run: pnpm install
+        run: pnpm install --force
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
