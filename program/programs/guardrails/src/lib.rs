@@ -13,6 +13,7 @@ pub mod state;
 // Re-export instruction types at crate root. The #[program] macro generates code
 // that looks for __client_accounts_* modules at crate::*, so glob re-exports are
 // needed for each implemented instruction module.
+#[allow(ambiguous_glob_reexports)]
 pub use instructions::escalate_to_squads::*;
 pub use instructions::guarded_execute::*;
 pub use instructions::initialize_policy::*;

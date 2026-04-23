@@ -318,7 +318,7 @@ pub fn handler(ctx: Context<GuardedExecute>, args: GuardedExecuteArgs) -> Result
     ];
 
     // Execute the CPI
-    let cpi_result = invoke_signed(&cpi_ix, &cpi_account_infos, &[signer_seeds]);
+    let cpi_result = invoke_signed(&cpi_ix, cpi_account_infos, &[signer_seeds]);
 
     // -----------------------------------------------------------------------
     // Steps 11-12: Handle CPI result
@@ -329,20 +329,12 @@ pub fn handler(ctx: Context<GuardedExecute>, args: GuardedExecuteArgs) -> Result
             // Step 11: CPI succeeded — update counters and emit success event
 
             // Update policy daily spend counter
-            ctx.accounts.policy.daily_spent_lamports = ctx
-                .accounts
-                .policy
-                .daily_spent_lamports
-                .checked_add(verified_amount)
-                .unwrap_or(u64::MAX);
+            ctx.accounts.policy.daily_spent_lamports =
+                ctx.accounts.policy.daily_spent_lamports.saturating_add(verified_amount);
 
             // Update SpendTracker
-            ctx.accounts.spend_tracker.lamports_spent_24h = ctx
-                .accounts
-                .spend_tracker
-                .lamports_spent_24h
-                .checked_add(verified_amount)
-                .unwrap_or(u64::MAX);
+            ctx.accounts.spend_tracker.lamports_spent_24h =
+                ctx.accounts.spend_tracker.lamports_spent_24h.saturating_add(verified_amount);
             ctx.accounts.spend_tracker.txn_count_24h =
                 ctx.accounts.spend_tracker.txn_count_24h.saturating_add(1);
             ctx.accounts.spend_tracker.last_txn_ts = now;
