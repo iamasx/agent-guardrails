@@ -1,7 +1,8 @@
 // Tests for the guarded_execute instruction (validation rejections + token program CPI).
 
 // Standard deps imported directly from packages
-import { BN } from "@coral-xyz/anchor";
+import anchor from "@coral-xyz/anchor";
+const { BN } = anchor;
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import { expect } from "chai";
 import { Clock } from "litesvm";

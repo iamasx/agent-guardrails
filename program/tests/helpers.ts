@@ -4,7 +4,8 @@
 // (BN, Keypair, expect, etc.) directly from their packages.
 
 import { fromWorkspace, LiteSVMProvider } from "anchor-litesvm";
-import { Program, BN } from "@coral-xyz/anchor";
+import anchor from "@coral-xyz/anchor";
+const { Program, BN } = anchor;
 import { Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import { createRequire } from "module";
 import {

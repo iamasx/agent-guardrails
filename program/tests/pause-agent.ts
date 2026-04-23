@@ -1,7 +1,8 @@
 // Tests for the pause_agent instruction (owner/monitor authorization, kill switch enforcement).
 
 // Standard deps imported directly from packages
-import { BN } from "@coral-xyz/anchor";
+import anchor from "@coral-xyz/anchor";
+const { BN } = anchor;
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import { expect } from "chai";
 
