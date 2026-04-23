@@ -5,6 +5,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Request, Response } from "express";
 import { env } from "../../config/env.js";
 import { ingest } from "../pipeline/ingest.js";
+import { prefilter } from "../pipeline/prefilter.js";
+import { judgeTransaction } from "../pipeline/judge.js";
 
 /**
  * Verify the Helius webhook signature.
@@ -96,8 +98,18 @@ export async function webhookHandler(req: Request, res: Response): Promise<void>
   // Process each transaction through the pipeline
   for (const txn of transactions) {
     try {
-      await ingest(txn);
-      // Phases 3-4 will add: prefilter → judge → executor → reporter
+      const row = await ingest(txn);
+      if (!row) continue;
+
+      // Prefilter: cheap stat checks — skip LLM if clearly benign
+      const { signals, skipped } = await prefilter(row);
+      if (skipped) continue;
+
+      // Judge: Claude Haiku evaluates the transaction
+      const verdict = await judgeTransaction(row, signals);
+
+      // Phase 4 will add: if verdict.verdict === "pause" → executor → reporter
+      void verdict;
     } catch (err) {
       console.error(`[webhook] pipeline error for ${txn.signature}:`, err);
     }
