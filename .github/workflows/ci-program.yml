@@ -2,6 +2,11 @@ name: CI — Program
 
 on:
   push:
+    branches: [main]
+    paths:
+      - "program/**"
+      - "sdk/idl/**"
+  pull_request:
     paths:
       - "program/**"
       - "sdk/idl/**"
@@ -10,8 +15,48 @@ concurrency:
   group: ci-program-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  SOLANA_VERSION: stable
+  ANCHOR_VERSION: 0.30.1
+
 jobs:
-  build-and-test:
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check formatting
+        working-directory: program/programs/guardrails
+        run: cargo fmt --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            program/target
+          key: clippy-${{ hashFiles('program/programs/guardrails/Cargo.toml', 'program/Cargo.toml') }}
+          restore-keys: clippy-
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      - name: Run Clippy
+        working-directory: program/programs/guardrails
+        run: cargo clippy -- -D warnings
+
+  build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,10 +75,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/solana
-          key: solana-stable-${{ runner.os }}
+          key: solana-${{ env.SOLANA_VERSION }}-${{ runner.os }}
 
       - name: Install Anchor CLI
-        run: npm install -g @coral-xyz/anchor-cli@0.30.1
+        run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
 
       - name: Cache Cargo
         uses: actions/cache@v4
@@ -56,9 +101,80 @@ jobs:
         working-directory: program
         run: anchor build
 
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: program-build
+          path: |
+            program/target/idl/
+            program/target/deploy/
+          retention-days: 1
+
+  test:
+    name: Test
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      - name: Cache Solana CLI
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/solana
+          key: solana-${{ env.SOLANA_VERSION }}-${{ runner.os }}
+
+      - name: Install Anchor CLI
+        run: npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            program/target
+          key: cargo-${{ hashFiles('program/programs/guardrails/Cargo.toml', 'program/Cargo.toml') }}
+          restore-keys: cargo-
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        working-directory: program
+        run: pnpm install
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: program-build
+          path: program/target/
+
       - name: Test
         working-directory: program
-        run: anchor test --skip-local-validator --skip-deploy || true  # TODO: remove || true once tests are implemented
+        run: anchor test --skip-local-validator --skip-deploy
+
+  idl-check:
+    name: IDL Sync Check
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: program-build
+          path: program/target/
 
       - name: Verify IDL is current
         run: |
@@ -68,4 +184,5 @@ jobs:
               diff program/target/idl/guardrails.json sdk/idl/guardrails.json || true
               exit 1
             fi
+            echo "IDL is in sync"
           fi

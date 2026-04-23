@@ -2,6 +2,11 @@ name: CI — Dashboard
 
 on:
   push:
+    branches: [main]
+    paths:
+      - "dashboard/**"
+      - "sdk/**"
+  pull_request:
     paths:
       - "dashboard/**"
       - "sdk/**"
@@ -10,13 +15,34 @@ concurrency:
   group: ci-dashboard-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  NEXT_PUBLIC_SOLANA_RPC_URL: "https://api.devnet.solana.com"
+  NEXT_PUBLIC_GUARDRAILS_PROGRAM_ID: "11111111111111111111111111111111"
+  NEXT_PUBLIC_API_URL: "http://localhost:8080"
+
 jobs:
-  lint-and-build:
+  typecheck:
+    name: Type Check
     runs-on: ubuntu-latest
-    env:
-      NEXT_PUBLIC_SOLANA_RPC_URL: "https://api.devnet.solana.com"
-      NEXT_PUBLIC_GUARDRAILS_PROGRAM_ID: "11111111111111111111111111111111"
-      NEXT_PUBLIC_API_URL: "http://localhost:8080"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: dashboard
+        run: npm install
+
+      - name: Type check
+        working-directory: dashboard
+        run: npx tsc --noEmit
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -31,11 +57,32 @@ jobs:
 
       - name: Lint
         working-directory: dashboard
-        run: npm run lint || true  # TODO: remove || true once eslint is configured
+        run: npm run lint
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: dashboard
+        run: npm install
 
       - name: Build
         working-directory: dashboard
         run: npm run build
+
+  sdk-sync:
+    name: SDK Sync Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Verify SDK is synced
         run: |
@@ -44,3 +91,4 @@ jobs:
             diff -rq sdk/ dashboard/lib/sdk/ || true
             exit 1
           fi
+          echo "dashboard/lib/sdk/ is in sync"

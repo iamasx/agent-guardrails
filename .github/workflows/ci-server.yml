@@ -2,6 +2,11 @@ name: CI — Server
 
 on:
   push:
+    branches: [main]
+    paths:
+      - "server/**"
+      - "sdk/**"
+  pull_request:
     paths:
       - "server/**"
       - "sdk/**"
@@ -11,7 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  typecheck:
+    name: Type Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,9 +38,41 @@ jobs:
         working-directory: server
         run: npx prisma generate
 
-      - name: Type-check and build
+      - name: Type check
+        working-directory: server
+        run: npx tsc --noEmit
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        working-directory: server
+        run: pnpm install
+
+      - name: Generate Prisma client
+        working-directory: server
+        run: npx prisma generate
+
+      - name: Build
         working-directory: server
         run: pnpm build
+
+  sdk-sync:
+    name: SDK Sync Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Verify SDK is synced
         run: |
@@ -43,3 +81,4 @@ jobs:
             diff -rq sdk/ server/src/sdk/ || true
             exit 1
           fi
+          echo "server/src/sdk/ is in sync"

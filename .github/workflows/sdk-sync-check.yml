@@ -2,6 +2,12 @@ name: CI — SDK Sync Check
 
 on:
   push:
+    branches: [main]
+    paths:
+      - "sdk/**"
+      - "server/src/sdk/**"
+      - "dashboard/lib/sdk/**"
+  pull_request:
     paths:
       - "sdk/**"
       - "server/src/sdk/**"
@@ -12,7 +18,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check-sync:
+  check-server:
+    name: Server SDK Copy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,6 +33,12 @@ jobs:
             exit 1
           fi
           echo "server/src/sdk/ is in sync"
+
+  check-dashboard:
+    name: Dashboard SDK Copy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Check dashboard SDK copy
         run: |
