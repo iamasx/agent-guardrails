@@ -1,11 +1,12 @@
-"use client";
-
-import { AppShell } from "@/components/dashboard-ui";
+import { AppShell } from "@/components/app-shell";
 
 export default function SignInPage() {
   return (
-    <AppShell title="Sign in" subtitle="Authenticate API access with Sign-In With Solana.">
-      <div className="card">Sign-in flow will be finalized in Phase 3.</div>
+    <AppShell
+      title="Sign In"
+      subtitle="Authenticate with your wallet using SIWS."
+    >
+      <div className="empty">SIWS nonce/sign/verify flow is implemented in Phase 3.</div>
     </AppShell>
   );
 }

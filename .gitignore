@@ -6,6 +6,7 @@ dist/
 .next/
 out/
 target/
+*.tsbuildinfo
 
 # Anchor
 .anchor/
@@ -37,7 +38,7 @@ Thumbs.db
 # Rust
 program/target/
 
-
-#dashboard
-dashboard/PHASES.md
+# Local prototype / planning artifacts
+/index.html
+/dashboard/PHASES.md
 

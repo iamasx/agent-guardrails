@@ -1,11 +1,12 @@
-"use client";
-
-import { AppShell } from "@/components/dashboard-ui";
+import { AppShell } from "@/components/app-shell";
 
 export default function NewAgentPage() {
   return (
-    <AppShell title="Create policy" subtitle="Define allowed programs, budgets, session expiry, and escalation behavior.">
-      <div className="card">Policy wizard write path lands in Phase 4.</div>
+    <AppShell
+      title="Create Policy"
+      subtitle="Define program allow-lists, spend limits, and escalation controls."
+    >
+      <div className="empty">The 4-step create policy wizard is implemented in Phase 4.</div>
     </AppShell>
   );
 }
