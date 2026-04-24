@@ -31,7 +31,7 @@ export function AgentsOverview() {
         action={
           <Link
             href="/agents/new"
-            className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+            className="button button-primary"
           >
             New policy
           </Link>

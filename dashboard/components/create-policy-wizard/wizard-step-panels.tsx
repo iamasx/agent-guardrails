@@ -72,10 +72,10 @@ function ProgramsStep({ fieldErrors }: { fieldErrors: Record<string, string> }) 
             <button
               key={pubkey}
               type="button"
-              className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
+              className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
                 selected
-                  ? "border-emerald-600 bg-emerald-950/40 text-emerald-200"
-                  : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                  ? "border-blue-600 bg-blue-950/40 text-blue-200"
+                  : "border-zinc-700 text-zinc-300 hover:border-blue-800/60 hover:bg-blue-950/30"
               }`}
               disabled={!selected && allowedPrograms.length >= 10}
               onClick={() => {
@@ -93,7 +93,7 @@ function ProgramsStep({ fieldErrors }: { fieldErrors: Record<string, string> }) 
         <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-sm text-zinc-400">
           Custom program address
           <input
-            className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100"
+            className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-zinc-100 outline-none transition-all duration-200 placeholder:text-zinc-500 focus:border-blue-700/60 focus:ring-1 focus:ring-blue-500/30"
             value={input}
             placeholder="Pubkey…"
             onChange={(e) => setInput(e.target.value)}
@@ -102,7 +102,7 @@ function ProgramsStep({ fieldErrors }: { fieldErrors: Record<string, string> }) 
         </label>
         <button
           type="button"
-          className="rounded-md border border-zinc-600 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-800"
+          className="rounded-lg border border-zinc-600 px-3 py-2 text-sm font-medium text-zinc-200 transition-all duration-200 hover:border-blue-700/70 hover:bg-blue-950/30 hover:text-blue-100"
           onClick={onAdd}
         >
           Add
@@ -120,14 +120,14 @@ function ProgramsStep({ fieldErrors }: { fieldErrors: Record<string, string> }) 
             {allowedPrograms.map((pubkey) => (
               <li
                 key={pubkey}
-                className="flex items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-sm"
+                className="flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-sm"
               >
                 <span className="font-mono text-zinc-200" title={pubkey}>
                   {PROGRAM_LABELS[pubkey] ?? shortenPubkey(pubkey)}
                 </span>
                 <button
                   type="button"
-                  className="text-xs text-red-400 hover:text-red-300"
+                  className="text-xs font-medium text-red-400 transition-colors duration-150 hover:text-red-300"
                   onClick={() => removeProgram(pubkey)}
                 >
                   Remove
@@ -150,30 +150,35 @@ function LimitsStep({ fieldErrors }: { fieldErrors: Record<string, string> }) {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-zinc-400">Set spend limits in SOL (converted to lamports on-chain in a later step).</p>
-      <label className="flex flex-col gap-1 text-sm text-zinc-400">
-        Max per transaction (SOL)
-        <input
-          type="number"
-          min={0}
-          step="any"
-          className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100"
-          value={Number.isFinite(maxTxSol) ? maxTxSol : ""}
-          onChange={(e) => setMaxTxSol(Number.parseFloat(e.target.value) || 0)}
-        />
-        {fieldErrors.maxTxSol ? <span className="text-red-400">{fieldErrors.maxTxSol}</span> : null}
-      </label>
-      <label className="flex flex-col gap-1 text-sm text-zinc-400">
-        Daily budget (SOL)
-        <input
-          type="number"
-          min={0}
-          step="any"
-          className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100"
-          value={Number.isFinite(dailyBudgetSol) ? dailyBudgetSol : ""}
-          onChange={(e) => setDailyBudgetSol(Number.parseFloat(e.target.value) || 0)}
-        />
-        {fieldErrors.dailyBudgetSol ? <span className="text-red-400">{fieldErrors.dailyBudgetSol}</span> : null}
-      </label>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <label className="flex flex-col gap-1 text-sm text-zinc-400">
+          Max per transaction (SOL)
+          <input
+            type="number"
+            min={0}
+            step="any"
+            className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-zinc-100 outline-none transition-all duration-200 focus:border-blue-700/60 focus:ring-1 focus:ring-blue-500/30"
+            value={Number.isFinite(maxTxSol) ? maxTxSol : ""}
+            onChange={(e) => setMaxTxSol(Number.parseFloat(e.target.value) || 0)}
+          />
+          {fieldErrors.maxTxSol ? <span className="text-red-400">{fieldErrors.maxTxSol}</span> : null}
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-zinc-400">
+          Daily budget (SOL)
+          <input
+            type="number"
+            min={0}
+            step="any"
+            className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-zinc-100 outline-none transition-all duration-200 focus:border-blue-700/60 focus:ring-1 focus:ring-blue-500/30"
+            value={Number.isFinite(dailyBudgetSol) ? dailyBudgetSol : ""}
+            onChange={(e) => setDailyBudgetSol(Number.parseFloat(e.target.value) || 0)}
+          />
+          {fieldErrors.dailyBudgetSol ? <span className="text-red-400">{fieldErrors.dailyBudgetSol}</span> : null}
+        </label>
+      </div>
+      <div className="rounded-md border border-emerald-900/50 bg-emerald-950/30 px-3 py-2 text-xs text-emerald-200">
+        At most {maxTxSol || 0} SOL per tx, up to {dailyBudgetSol || 0} SOL rolling 24h.
+      </div>
     </div>
   );
 }
@@ -201,7 +206,7 @@ function SessionStep({ fieldErrors }: { fieldErrors: Record<string, string> }) {
           min={1}
           max={90}
           step={1}
-          className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100"
+          className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-zinc-100 outline-none transition-all duration-200 focus:border-blue-700/60 focus:ring-1 focus:ring-blue-500/30"
           value={Number.isFinite(sessionDays) ? sessionDays : ""}
           onChange={(e) => setSessionDays(Number.parseInt(e.target.value, 10) || 0)}
         />
@@ -230,7 +235,7 @@ function EscalationStep({ fieldErrors }: { fieldErrors: Record<string, string> }
       <label className="flex items-center gap-2 text-sm text-zinc-200">
         <input
           type="checkbox"
-          className="rounded border-zinc-600"
+          className="h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-blue-500 focus:ring-blue-500/50"
           checked={escalationEnabled}
           onChange={(e) => setEscalationEnabled(e.target.checked)}
         />
@@ -242,7 +247,7 @@ function EscalationStep({ fieldErrors }: { fieldErrors: Record<string, string> }
           <label className="flex flex-col gap-1 text-sm text-zinc-400">
             Squads multisig address
             <input
-              className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-sm text-zinc-100"
+              className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 font-mono text-sm text-zinc-100 outline-none transition-all duration-200 focus:border-blue-700/60 focus:ring-1 focus:ring-blue-500/30"
               value={squadsMultisig}
               placeholder="Multisig pubkey…"
               onChange={(e) => setSquadsMultisig(e.target.value)}
@@ -257,7 +262,7 @@ function EscalationStep({ fieldErrors }: { fieldErrors: Record<string, string> }
               type="number"
               min={0}
               step="any"
-              className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100"
+              className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-zinc-100 outline-none transition-all duration-200 focus:border-blue-700/60 focus:ring-1 focus:ring-blue-500/30"
               value={Number.isFinite(escalationThresholdSol) ? escalationThresholdSol : ""}
               onChange={(e) => setEscalationThresholdSol(Number.parseFloat(e.target.value) || 0)}
             />

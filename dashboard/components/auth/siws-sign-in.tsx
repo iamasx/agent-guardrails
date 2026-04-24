@@ -1,7 +1,6 @@
 "use client";
 
 import { useWallet } from "@solana/wallet-adapter-react";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import {
@@ -58,9 +57,9 @@ export function SiwsSignIn() {
         Connect a wallet, then sign the one-time message from the Guardrails API to create a session.
       </p>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <WalletMultiButton />
-      </div>
+      <p className="rounded-md border border-blue-900/40 bg-blue-950/20 px-3 py-2 text-sm text-blue-200">
+        Use the global wallet button in the top bar to connect your wallet before signing in.
+      </p>
 
       {connected && !signMessage ? (
         <p className="text-sm text-amber-400">This wallet does not support message signing.</p>
@@ -69,7 +68,7 @@ export function SiwsSignIn() {
       {connected && signMessage ? (
         <button
           type="button"
-          className="inline-flex w-fit items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="button button-primary w-fit disabled:cursor-not-allowed disabled:opacity-50"
           disabled={busy || connecting}
           onClick={() => void onSignIn()}
         >

@@ -11,12 +11,12 @@ export function QueryLoading({
   listSkeleton?: boolean;
 }) {
   return (
-    <div className="state-panel flex flex-col gap-3">
-      <p className="empty">{message}</p>
+    <div className="flex flex-col gap-3 rounded-xl border border-zinc-800/50 bg-zinc-900/40 p-4 backdrop-blur-sm">
+      <p className="rounded-lg border border-dashed border-zinc-700/50 bg-zinc-900/30 px-4 py-8 text-center text-sm text-zinc-400 transition-colors duration-200">{message}</p>
       {listSkeleton ? (
         <div className="flex flex-col gap-2" aria-hidden>
           {[0, 1, 2].map((i) => (
-            <div key={i} className="loading-shimmer h-16 rounded-lg border border-zinc-800/80 bg-zinc-900/50" />
+            <div key={i} className="h-16 rounded-lg border border-zinc-800/80 bg-[length:220%_100%] bg-[linear-gradient(110deg,rgba(39,39,42,0.58)_8%,rgba(59,130,246,0.17)_18%,rgba(39,39,42,0.58)_33%)] bg-zinc-900/50 animate-[shimmer_1.3s_linear_infinite]" />
           ))}
         </div>
       ) : null}
@@ -34,7 +34,7 @@ export function QueryError({
   title?: string;
 }) {
   return (
-    <div className="state-panel rounded-lg border border-rose-900/50 bg-rose-950/20 p-4">
+    <div className="rounded-xl border border-rose-900/50 bg-rose-950/20 p-4 backdrop-blur-sm">
       <p className="text-sm font-medium text-rose-200">{title}</p>
       <p className="mt-1 text-sm text-rose-300/90">{getErrorMessage(error)}</p>
       {onRetry ? (
@@ -60,7 +60,7 @@ export function QueryEmpty({
   action?: ReactNode;
 }) {
   return (
-    <div className="state-panel rounded-lg border border-zinc-800 bg-zinc-900/30 p-6 text-center">
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-6 text-center backdrop-blur-sm">
       <p className="text-sm font-medium text-zinc-200">{title}</p>
       {description ? <p className="mt-2 text-sm text-zinc-500">{description}</p> : null}
       {action ? <div className="mt-4 flex justify-center gap-2">{action}</div> : null}

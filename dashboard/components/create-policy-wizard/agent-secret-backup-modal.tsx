@@ -22,22 +22,22 @@ export function AgentSecretBackupModal({
   const secret = secretKeyBase64(agentKeypair);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="max-w-lg rounded-xl border border-zinc-700 bg-zinc-900 p-6 shadow-xl">
-        <h2 className="text-lg font-medium text-zinc-100">Save your agent secret</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
+      <div className="max-w-lg rounded-2xl border border-blue-950/40 bg-gradient-to-br from-zinc-900/95 to-zinc-900/80 p-6 shadow-2xl shadow-blue-950/30">
+        <h2 className="text-lg font-semibold text-zinc-100">Save your agent secret</h2>
         <p className="mt-2 text-sm text-zinc-400">
           This key signs <span className="font-mono text-zinc-300">guarded_execute</span> transactions.
           It cannot be recovered later. Store the base64 secret somewhere safe.
         </p>
         <textarea
           readOnly
-          className="mt-4 h-24 w-full resize-none rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-xs text-zinc-200"
+          className="mt-4 h-24 w-full resize-none rounded-lg border border-zinc-700 bg-zinc-950/90 px-3 py-2 font-mono text-xs text-zinc-200 outline-none"
           value={secret}
         />
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"
-            className="rounded-md border border-zinc-600 px-3 py-1.5 text-sm text-zinc-200 hover:bg-zinc-800"
+            className="rounded-lg border border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-200 transition-all duration-200 hover:border-blue-700/70 hover:bg-blue-950/30 hover:text-blue-100"
             onClick={() => navigator.clipboard.writeText(secret)}
           >
             Copy secret
@@ -46,7 +46,7 @@ export function AgentSecretBackupModal({
         <label className="mt-4 flex items-center gap-2 text-sm text-zinc-300">
           <input
             type="checkbox"
-            className="rounded border-zinc-600"
+            className="h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-blue-500 focus:ring-blue-500/50"
             checked={saved}
             disabled={busy}
             onChange={(e) => setSaved(e.target.checked)}
@@ -56,7 +56,7 @@ export function AgentSecretBackupModal({
         <div className="mt-6 flex justify-end gap-2">
           <button
             type="button"
-            className="rounded-md border border-zinc-600 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-800"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-600 px-4 py-2.5 text-sm font-semibold text-zinc-200 transition-all duration-200 hover:border-blue-700/70 hover:bg-blue-950/30 hover:text-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={busy}
             onClick={onCancel}
           >
@@ -64,7 +64,7 @@ export function AgentSecretBackupModal({
           </button>
           <button
             type="button"
-            className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition-all duration-200 hover:from-blue-500 hover:to-blue-400 hover:shadow-xl hover:shadow-blue-500/40 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!saved || busy}
             onClick={onConfirm}
           >

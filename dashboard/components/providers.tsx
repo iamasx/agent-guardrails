@@ -8,6 +8,7 @@ import { ConnectionProvider, WalletProvider, useWallet } from "@solana/wallet-ad
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import type { Adapter } from "@solana/wallet-adapter-base";
 import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
+import { BackpackWalletAdapter } from "@solana/wallet-adapter-backpack";
 import { ApiClientError, isUnauthorizedError } from "@/lib/api/client";
 import { useSSE } from "@/lib/sse/useSSE";
 
@@ -63,7 +64,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
       }),
   );
 
-  const wallets = useMemo(() => [new PhantomWalletAdapter(), new SolflareWalletAdapter()], []);
+  const wallets = useMemo(
+    () => [new PhantomWalletAdapter(), new SolflareWalletAdapter(), new BackpackWalletAdapter()],
+    [],
+  );
 
   return (
     <SafeConnectionProvider endpoint={RPC_ENDPOINT}>
