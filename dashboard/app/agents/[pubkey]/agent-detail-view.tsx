@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell, IncidentTable, Metric, SpendGauge, TransactionRow } from "@/components/dashboard-ui";
+import { KillSwitchButton } from "@/components/kill-switch-button";
 import { getErrorMessage } from "@/lib/api/client";
 import { useIncidentsQuery } from "@/lib/api/use-incidents-query";
 import { usePolicyQuery } from "@/lib/api/use-policy-query";
@@ -43,6 +44,8 @@ export function AgentDetailView({ pubkey }: { pubkey: string }) {
         <Metric label="Status" value={policy.isActive ? "Active" : "Paused"} />
         <Metric label="Session expiry" value={new Date(policy.sessionExpiry).toLocaleString()} />
       </div>
+
+      <KillSwitchButton policy={policy} />
 
       <div className="card mt-4">
         <div className="card-title">Daily spend</div>

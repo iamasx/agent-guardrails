@@ -65,7 +65,6 @@ export async function executePause(
 
   // Send pause_agent instruction on-chain
   const txSig = await client.pauseAgent(
-    monitorKeypair,
     policyPubkey,
     reason.slice(0, 64),
   );

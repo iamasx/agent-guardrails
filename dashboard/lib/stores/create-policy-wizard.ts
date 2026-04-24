@@ -47,6 +47,7 @@ export type CreatePolicyWizardState = CreatePolicyDraftInput & {
   setSquadsMultisig: (value: string) => void;
   setEscalationThresholdSol: (value: number) => void;
   resetWizard: () => void;
+  jumpToStep: (step: number) => void;
 };
 
 export const useCreatePolicyWizardStore = create<CreatePolicyWizardState>()(
@@ -128,6 +129,12 @@ export const useCreatePolicyWizardStore = create<CreatePolicyWizardState>()(
         set({
           ...defaultDraft,
           currentStep: 0,
+          fieldErrors: {},
+        }),
+
+      jumpToStep: (step: number) =>
+        set({
+          currentStep: Math.max(0, Math.min(3, step)),
           fieldErrors: {},
         }),
     }),

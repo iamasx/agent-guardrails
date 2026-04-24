@@ -175,7 +175,6 @@ describe("executePause", () => {
 
     // The pauseAgent call should receive truncated reason
     expect(mockPauseAgent).toHaveBeenCalledWith(
-      expect.anything(), // keypair
       expect.anything(), // policyPubkey
       "A".repeat(64),
     );

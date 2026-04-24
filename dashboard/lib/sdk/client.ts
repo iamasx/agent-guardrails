@@ -4,15 +4,10 @@
 // Usage:
 //   const client = new GuardrailsClient(provider);
 //   const policy = await client.fetchPolicy(policyPda);
-//   await client.pauseAgent(callerKeypair, policyPda, "Anomaly detected");
+//   await client.pauseAgent(policyPda, "Anomaly detected");
 
 import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
-import {
-  AccountMeta,
-  Keypair,
-  PublicKey,
-  SystemProgram,
-} from "@solana/web3.js";
+import { AccountMeta, Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import IDL from "./idl/guardrails.json";
 import {
   POLICY_SEED,
@@ -65,6 +60,15 @@ export class GuardrailsClient {
     // This avoids mismatches when deploying to different clusters.
     const idlWithAddress = { ...IDL, address: resolved.toBase58() };
     this.program = new Program(idlWithAddress as any, provider);
+  }
+
+  /** Connected wallet public key (owner, monitor, or agent signer depending on ix). */
+  private walletPublicKey(): PublicKey {
+    const pk = (this.program.provider as AnchorProvider).wallet?.publicKey;
+    if (!pk) {
+      throw new Error("Anchor provider wallet is not connected");
+    }
+    return pk;
   }
 
   // -------------------------------------------------------------------------
@@ -128,41 +132,42 @@ export class GuardrailsClient {
   // Instruction methods
   // -------------------------------------------------------------------------
 
-  /** Creates a PermissionPolicy + SpendTracker PDA pair. */
+  /**
+   * Creates a PermissionPolicy + SpendTracker PDA pair.
+   * The provider wallet must be the policy owner (signs as `owner`).
+   */
   async initializePolicy(
-    owner: Keypair,
     agent: PublicKey,
     args: InitializePolicyArgs,
   ): Promise<string> {
-    const [policyPda] = this.findPolicyPda(owner.publicKey, agent);
+    const owner = this.walletPublicKey();
+    const [policyPda] = this.findPolicyPda(owner, agent);
     const [trackerPda] = this.findTrackerPda(policyPda);
 
     return await (this.program.methods as any)
       .initializePolicy(args)
       .accounts({
-        owner: owner.publicKey,
+        owner,
         agent,
         policy: policyPda,
         spendTracker: trackerPda,
         systemProgram: SystemProgram.programId,
       })
-      .signers([owner])
       .rpc();
   }
 
-  /** Updates configurable fields on an existing policy. Owner-only. */
+  /** Updates configurable fields on an existing policy. Owner-only (wallet). */
   async updatePolicy(
-    owner: Keypair,
     policyPda: PublicKey,
     args: UpdatePolicyArgs,
   ): Promise<string> {
+    const owner = this.walletPublicKey();
     return await (this.program.methods as any)
       .updatePolicy(args)
       .accounts({
-        owner: owner.publicKey,
+        owner,
         policy: policyPda,
       })
-      .signers([owner])
       .rpc();
   }
 
@@ -198,36 +203,34 @@ export class GuardrailsClient {
       .rpc();
   }
 
-  /** Pauses an agent. Callable by owner or authorized monitor. */
+  /**
+   * Pauses an agent. Callable by owner or authorized monitor (provider wallet).
+   */
   async pauseAgent(
-    caller: Keypair,
     policyPda: PublicKey,
     reason: string | Buffer,
   ): Promise<string> {
+    const caller = this.walletPublicKey();
     const reasonBuf = typeof reason === "string" ? Buffer.from(reason) : reason;
 
     return await (this.program.methods as any)
       .pauseAgent({ reason: reasonBuf })
       .accounts({
-        caller: caller.publicKey,
+        caller,
         policy: policyPda,
       })
-      .signers([caller])
       .rpc();
   }
 
-  /** Resumes a paused agent. Owner-only. */
-  async resumeAgent(
-    owner: Keypair,
-    policyPda: PublicKey,
-  ): Promise<string> {
+  /** Resumes a paused agent. Owner-only (wallet). */
+  async resumeAgent(policyPda: PublicKey): Promise<string> {
+    const owner = this.walletPublicKey();
     return await (this.program.methods as any)
       .resumeAgent()
       .accounts({
-        owner: owner.publicKey,
+        owner,
         policy: policyPda,
       })
-      .signers([owner])
       .rpc();
   }
 }

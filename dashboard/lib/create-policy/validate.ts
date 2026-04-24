@@ -87,6 +87,33 @@ export function validateEscalation(
   return errors;
 }
 
+/** Run all step validators (for submit / edit save). */
+export function validateFullDraft(draft: CreatePolicyDraftInput): {
+  ok: boolean;
+  errors: Record<string, string>;
+} {
+  const errors: Record<string, string> = {
+    ...validatePrograms(draft.allowedPrograms),
+    ...validateLimits(draft.maxTxSol, draft.dailyBudgetSol),
+    ...validateSession(draft.sessionDays),
+    ...validateEscalation(
+      draft.escalationEnabled,
+      draft.squadsMultisig,
+      draft.escalationThresholdSol,
+    ),
+  };
+  return { ok: Object.keys(errors).length === 0, errors };
+}
+
+/** Wizard step index for the first field error (0–3). */
+export function firstErrorStepFromErrors(errors: Record<string, string>): number {
+  if (errors.allowedPrograms) return 0;
+  if (errors.maxTxSol || errors.dailyBudgetSol) return 1;
+  if (errors.sessionDays) return 2;
+  if (errors.squadsMultisig || errors.escalationThresholdSol) return 3;
+  return 0;
+}
+
 export function validateStep(
   stepIndex: number,
   draft: CreatePolicyDraftInput,

@@ -7,8 +7,18 @@ import { INCIDENTS, POLICIES, TRANSACTIONS, VERDICTS } from "@/lib/mock";
 const useQueryMock = vi.fn();
 const pushMock = vi.fn();
 
+const setQueryDataMock = vi.fn();
+const getQueryDataMock = vi.fn();
+
 vi.mock("@tanstack/react-query", () => ({
   useQuery: (...args: unknown[]) => useQueryMock(...args),
+  useQueryClient: () => ({
+    setQueryData: setQueryDataMock,
+    getQueryData: getQueryDataMock,
+  }),
+  QueryClient: class {},
+  QueryCache: class {},
+  QueryClientProvider: ({ children }: { children: ReactNode }) => createElement("div", undefined, children),
 }));
 
 vi.mock("next/link", () => ({
@@ -23,7 +33,15 @@ vi.mock("@solana/wallet-adapter-react", () => ({
   useWallet: () => ({
     publicKey: { toBase58: () => "Wallet1111111111111111111111111111111111" },
     signMessage: vi.fn(async () => new Uint8Array([1, 2, 3])),
+    signTransaction: vi.fn(),
+    signAllTransactions: vi.fn(),
   }),
+}));
+
+vi.mock("@/components/providers", () => ({
+  AppProviders: ({ children }: { children: ReactNode }) => createElement("div", undefined, children),
+  useAnchorProvider: () => null,
+  getProgramId: () => null,
 }));
 
 vi.mock("@/components/dashboard-ui", () => ({
@@ -64,6 +82,8 @@ beforeEach(() => {
   useQueryMock.mockReset();
   useQueryMock.mockReturnValue({ data: undefined, isLoading: false });
   pushMock.mockReset();
+  setQueryDataMock.mockReset();
+  getQueryDataMock.mockReset();
 });
 
 afterEach(() => {
@@ -124,7 +144,7 @@ describe("phase 1 route smoke tests", () => {
     cleanup();
 
     const EditPolicyPage = (await import("@/app/agents/[pubkey]/policy/page")).default;
-    useQueryMock.mockReturnValueOnce({ data: POLICIES });
+    useQueryMock.mockReturnValueOnce({ data: POLICIES[0], isLoading: false, isError: false });
     render(createElement(EditPolicyPage, { params: { pubkey: POLICIES[0].pubkey } }));
     expect(screen.getByText("Edit Policy")).toBeTruthy();
     cleanup();
