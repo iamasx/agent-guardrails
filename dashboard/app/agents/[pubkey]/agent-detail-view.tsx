@@ -46,7 +46,10 @@ export function AgentDetailView({ pubkey }: { pubkey: string }) {
 
       <div className="card mt-4">
         <div className="card-title">Daily spend</div>
-        <SpendGauge spentLamports="0" budgetLamports={policy.dailyBudgetLamports} />
+        <SpendGauge
+          spentLamports={String(policy.dailySpentLamports ?? "0")}
+          budgetLamports={String(policy.dailyBudgetLamports)}
+        />
       </div>
 
       <div className="card mt-4">

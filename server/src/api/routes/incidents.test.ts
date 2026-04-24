@@ -103,6 +103,34 @@ describe("GET /api/incidents", () => {
     );
   });
 
+  it("scopes to a single policy when policy query matches an owned pubkey", async () => {
+    const policy = makePolicy();
+    mockPrisma.policy.findMany.mockResolvedValue([{ pubkey: policy.pubkey }]);
+    mockPrisma.incident.findMany.mockResolvedValue([]);
+    mockPrisma.incident.count.mockResolvedValue(0);
+
+    await request(app).get(`/api/incidents?policy=${policy.pubkey}`);
+    expect(mockPrisma.incident.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { policyPubkey: policy.pubkey },
+      }),
+    );
+  });
+
+  it("ignores policy query when it is not an owned pubkey", async () => {
+    const policy = makePolicy();
+    mockPrisma.policy.findMany.mockResolvedValue([{ pubkey: policy.pubkey }]);
+    mockPrisma.incident.findMany.mockResolvedValue([]);
+    mockPrisma.incident.count.mockResolvedValue(0);
+
+    await request(app).get("/api/incidents?policy=UnownedPolicy1111111111111111111");
+    expect(mockPrisma.incident.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { policyPubkey: { in: [policy.pubkey] } },
+      }),
+    );
+  });
+
   it("returns 500 on database error", async () => {
     mockPrisma.policy.findMany.mockRejectedValue(new Error("DB connection failed"));
 

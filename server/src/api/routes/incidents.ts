@@ -30,7 +30,13 @@ incidentsRouter.get("/", async (req, res) => {
       return;
     }
 
-    const where = { policyPubkey: { in: policyPubkeys } };
+    const policyFilter = req.query.policy as string | undefined;
+    const scopedPubkey =
+      policyFilter && policyPubkeys.includes(policyFilter) ? policyFilter : undefined;
+
+    const where = {
+      policyPubkey: scopedPubkey ? scopedPubkey : { in: policyPubkeys },
+    };
 
     const [incidents, total] = await Promise.all([
       prisma.incident.findMany({

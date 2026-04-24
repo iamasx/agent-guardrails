@@ -19,6 +19,7 @@ export interface Policy {
   allowedPrograms: string[];
   maxTxLamports: string;          // BigInt serialized as string
   dailyBudgetLamports: string;    // BigInt serialized as string
+  dailySpentLamports?: string;    // BigInt serialized as string (optional for backward compatibility)
   sessionExpiry: string;          // ISO 8601
   isActive: boolean;
   squadsMultisig: string | null;
