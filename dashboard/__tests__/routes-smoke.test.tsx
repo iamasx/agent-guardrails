@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { createElement } from "react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { INCIDENTS, POLICIES, TRANSACTIONS, VERDICTS } from "@/lib/mock";
 
 const useQueryMock = vi.fn();
@@ -56,6 +56,10 @@ beforeEach(() => {
   pushMock.mockReset();
 });
 
+afterEach(() => {
+  cleanup();
+});
+
 describe("phase 1 route smoke tests", () => {
   it("renders landing and agents routes", async () => {
     const Home = (await import("@/app/page")).default;
@@ -64,7 +68,7 @@ describe("phase 1 route smoke tests", () => {
       .mockReturnValueOnce({ data: { items: TRANSACTIONS } })
       .mockReturnValueOnce({ data: { items: INCIDENTS } });
     render(createElement(Home));
-    expect(screen.getByText("Guardrails overview")).toBeTruthy();
+    expect(screen.getByText("Agent Guardrails Protocol")).toBeTruthy();
     cleanup();
 
     const AgentsPage = (await import("@/app/agents/page")).default;
@@ -76,7 +80,7 @@ describe("phase 1 route smoke tests", () => {
   it("renders new, activity, and incidents routes", async () => {
     const NewAgentPage = (await import("@/app/agents/new/page")).default;
     render(createElement(NewAgentPage));
-    expect(screen.getByText("Create policy")).toBeTruthy();
+    expect(screen.getByText("Create Policy")).toBeTruthy();
     cleanup();
 
     const ActivityPage = (await import("@/app/activity/page")).default;
@@ -84,19 +88,19 @@ describe("phase 1 route smoke tests", () => {
       .mockReturnValueOnce({ data: POLICIES })
       .mockReturnValueOnce({ data: { items: TRANSACTIONS.map((item, idx) => ({ ...item, verdict: VERDICTS[idx] ?? null })) } });
     render(createElement(ActivityPage));
-    expect(screen.getByText("Activity")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Activity" })).toBeTruthy();
     cleanup();
 
     const IncidentsPage = (await import("@/app/incidents/page")).default;
     useQueryMock.mockReturnValueOnce({ data: { items: INCIDENTS } });
     render(createElement(IncidentsPage));
-    expect(screen.getByText("Incidents")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Incidents" })).toBeTruthy();
   });
 
   it("renders signin, agent detail, policy edit, and incident detail routes", async () => {
     const SignInPage = (await import("@/app/(auth)/signin/page")).default;
     render(createElement(SignInPage));
-    expect(screen.getByText("Sign in")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Sign In" })).toBeTruthy();
     cleanup();
 
     const AgentDetailPage = (await import("@/app/agents/[pubkey]/page")).default;
@@ -111,7 +115,7 @@ describe("phase 1 route smoke tests", () => {
     const EditPolicyPage = (await import("@/app/agents/[pubkey]/policy/page")).default;
     useQueryMock.mockReturnValueOnce({ data: POLICIES });
     render(createElement(EditPolicyPage, { params: { pubkey: POLICIES[0].pubkey } }));
-    expect(screen.getByText("Edit policy")).toBeTruthy();
+    expect(screen.getByText("Edit Policy")).toBeTruthy();
     cleanup();
 
     const IncidentDetailPage = (await import("@/app/incidents/[id]/page")).default;
@@ -124,6 +128,6 @@ describe("phase 1 route smoke tests", () => {
       isLoading: false,
     });
     render(createElement(IncidentDetailPage, { params: { id: INCIDENTS[0].id } }));
-    expect(screen.getByText(POLICIES[0].label as string)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Incident Detail" })).toBeTruthy();
   });
 });

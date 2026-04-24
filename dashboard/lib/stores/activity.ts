@@ -1,17 +1,4 @@
-import { create } from "zustand";
+import { useActivityFiltersStore } from "./activity-filters";
 
-type VerdictFilter = "all" | "allow" | "flag" | "pause";
-
-interface ActivityStore {
-  selectedPolicyPubkey: string | null;
-  verdictFilter: VerdictFilter;
-  setSelectedPolicy: (pubkey: string | null) => void;
-  setVerdictFilter: (filter: VerdictFilter) => void;
-}
-
-export const useActivityStore = create<ActivityStore>((set) => ({
-  selectedPolicyPubkey: null,
-  verdictFilter: "all",
-  setSelectedPolicy: (pubkey) => set({ selectedPolicyPubkey: pubkey }),
-  setVerdictFilter: (filter) => set({ verdictFilter: filter }),
-}));
+// Backward-compatible alias during store migration.
+export const useActivityStore = useActivityFiltersStore;

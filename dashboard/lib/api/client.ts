@@ -31,7 +31,8 @@ function normalizeLimit(limit: number, fallback: number): number {
   if (!Number.isFinite(limit) || limit <= 0) {
     return fallback;
   }
-  return Math.floor(limit);
+  const normalized = Math.floor(limit);
+  return normalized > 0 ? normalized : fallback;
 }
 
 function toQueryString(params: URLSearchParams): string {
@@ -47,13 +48,17 @@ async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, buildApiRequestInit());
 
   if (!response.ok) {
+    const raw = await response.text().catch(() => "");
     let payload: ApiErrorPayload | null = null;
     let errorMessage = "";
     try {
-      payload = (await response.json()) as ApiErrorPayload;
-      errorMessage = payload.error ?? payload.message ?? "";
+      payload = JSON.parse(raw) as ApiErrorPayload;
+      errorMessage =
+        (typeof payload?.error === "string" && payload.error) ||
+        (typeof payload?.message === "string" && payload.message) ||
+        "";
     } catch {
-      errorMessage = await response.text().catch(() => "");
+      errorMessage = raw;
     }
     throw new ApiClientError(response.status, errorMessage || DEFAULT_ERROR_MESSAGE, payload);
   }
@@ -124,10 +129,11 @@ function sortIncidents(items: IncidentSummary[]): IncidentSummary[] {
 
 function normalizePaginatedResponse<T extends { id: string }>(
   response: ApiListResponse<T>,
+  before: string | undefined,
   limit: number,
 ): PaginatedResponse<T> {
   if (Array.isArray(response)) {
-    return paginate(response, undefined, limit);
+    return paginate(response, before, limit);
   }
   return response;
 }
@@ -212,7 +218,7 @@ export async function fetchTransactions(
     const response = await getJson<ApiListResponse<TransactionSummary>>(
       `/api/transactions${toQueryString(params)}`,
     );
-    return normalizePaginatedResponse(response, safeLimit);
+    return normalizePaginatedResponse(response, before, safeLimit);
   }
 
   const filtered = sortTransactions(buildTransactions()).filter((transaction) =>
@@ -233,7 +239,7 @@ export async function fetchIncidents(
     if (before) params.set("before", before);
     params.set("limit", String(safeLimit));
     const response = await getJson<ApiListResponse<IncidentSummary>>(`/api/incidents${toQueryString(params)}`);
-    return normalizePaginatedResponse(response, safeLimit);
+    return normalizePaginatedResponse(response, before, safeLimit);
   }
 
   const filtered = sortIncidents(INCIDENTS).filter((incident) =>

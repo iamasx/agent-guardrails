@@ -16,7 +16,7 @@ import {
   verdictTone,
 } from "@/lib/utils";
 import type { IncidentSummary, PolicySummary, TransactionSummary } from "@/lib/types/dashboard";
-import { useUIStore } from "@/lib/stores/ui";
+import { useLayoutStore } from "@/lib/stores/layout";
 import { WalletControls } from "./wallet-controls";
 
 export function AppShell({
@@ -31,7 +31,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  const { sidebarOpen, toggleSidebar } = useUIStore();
+  const { sidebarOpen, toggleSidebar } = useLayoutStore();
   const links = [
     { href: "/", label: "Overview" },
     { href: "/agents", label: "Agents" },
