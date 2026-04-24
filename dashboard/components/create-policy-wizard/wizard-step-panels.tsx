@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PROGRAM_LABELS } from "@/lib/mock/policies";
 import { isValidPubkeyString } from "@/lib/create-policy/validate";
 import { useCreatePolicyWizardStore } from "@/lib/stores/create-policy-wizard";
@@ -8,6 +8,26 @@ import { useCreatePolicyWizardStore } from "@/lib/stores/create-policy-wizard";
 function shortenPubkey(pubkey: string): string {
   if (pubkey.length <= 8) return pubkey;
   return `${pubkey.slice(0, 4)}…${pubkey.slice(-4)}`;
+}
+
+function useBufferedNumberInput(
+  value: number,
+  setValue: (nextValue: number) => void,
+  parse: (raw: string) => number,
+) {
+  const [inputValue, setInputValue] = useState(() => (Number.isFinite(value) ? String(value) : ""));
+
+  useEffect(() => {
+    setInputValue(Number.isFinite(value) ? String(value) : "");
+  }, [value]);
+
+  const commitValue = () => {
+    const trimmed = inputValue.trim();
+    const parsedValue = trimmed ? parse(trimmed) : 0;
+    setValue(Number.isFinite(parsedValue) ? parsedValue : 0);
+  };
+
+  return { inputValue, setInputValue, commitValue };
 }
 
 export function WizardStepPanels() {
@@ -146,6 +166,12 @@ function LimitsStep({ fieldErrors }: { fieldErrors: Record<string, string> }) {
   const dailyBudgetSol = useCreatePolicyWizardStore((s) => s.dailyBudgetSol);
   const setMaxTxSol = useCreatePolicyWizardStore((s) => s.setMaxTxSol);
   const setDailyBudgetSol = useCreatePolicyWizardStore((s) => s.setDailyBudgetSol);
+  const maxTxInput = useBufferedNumberInput(maxTxSol, setMaxTxSol, Number.parseFloat);
+  const dailyBudgetInput = useBufferedNumberInput(
+    dailyBudgetSol,
+    setDailyBudgetSol,
+    Number.parseFloat,
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -158,8 +184,9 @@ function LimitsStep({ fieldErrors }: { fieldErrors: Record<string, string> }) {
             min={0}
             step="any"
             className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-zinc-100 outline-none transition-all duration-200 focus:border-blue-700/60 focus:ring-1 focus:ring-blue-500/30"
-            value={Number.isFinite(maxTxSol) ? maxTxSol : ""}
-            onChange={(e) => setMaxTxSol(Number.parseFloat(e.target.value) || 0)}
+            value={maxTxInput.inputValue}
+            onBlur={maxTxInput.commitValue}
+            onChange={(e) => maxTxInput.setInputValue(e.target.value)}
           />
           {fieldErrors.maxTxSol ? <span className="text-red-400">{fieldErrors.maxTxSol}</span> : null}
         </label>
@@ -170,8 +197,9 @@ function LimitsStep({ fieldErrors }: { fieldErrors: Record<string, string> }) {
             min={0}
             step="any"
             className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-zinc-100 outline-none transition-all duration-200 focus:border-blue-700/60 focus:ring-1 focus:ring-blue-500/30"
-            value={Number.isFinite(dailyBudgetSol) ? dailyBudgetSol : ""}
-            onChange={(e) => setDailyBudgetSol(Number.parseFloat(e.target.value) || 0)}
+            value={dailyBudgetInput.inputValue}
+            onBlur={dailyBudgetInput.commitValue}
+            onChange={(e) => dailyBudgetInput.setInputValue(e.target.value)}
           />
           {fieldErrors.dailyBudgetSol ? <span className="text-red-400">{fieldErrors.dailyBudgetSol}</span> : null}
         </label>
@@ -186,6 +214,11 @@ function LimitsStep({ fieldErrors }: { fieldErrors: Record<string, string> }) {
 function SessionStep({ fieldErrors }: { fieldErrors: Record<string, string> }) {
   const sessionDays = useCreatePolicyWizardStore((s) => s.sessionDays);
   const setSessionDays = useCreatePolicyWizardStore((s) => s.setSessionDays);
+  const sessionDaysInput = useBufferedNumberInput(
+    sessionDays,
+    setSessionDays,
+    (raw) => Number.parseInt(raw, 10),
+  );
 
   const expiryMs = Date.now() + sessionDays * 86_400_000;
   const expiryDateUtc = new Date(expiryMs);
@@ -207,8 +240,9 @@ function SessionStep({ fieldErrors }: { fieldErrors: Record<string, string> }) {
           max={90}
           step={1}
           className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-zinc-100 outline-none transition-all duration-200 focus:border-blue-700/60 focus:ring-1 focus:ring-blue-500/30"
-          value={Number.isFinite(sessionDays) ? sessionDays : ""}
-          onChange={(e) => setSessionDays(Number.parseInt(e.target.value, 10) || 0)}
+          value={sessionDaysInput.inputValue}
+          onBlur={sessionDaysInput.commitValue}
+          onChange={(e) => sessionDaysInput.setInputValue(e.target.value)}
         />
         {fieldErrors.sessionDays ? <span className="text-red-400">{fieldErrors.sessionDays}</span> : null}
       </label>
@@ -226,6 +260,11 @@ function EscalationStep({ fieldErrors }: { fieldErrors: Record<string, string> }
   const setEscalationEnabled = useCreatePolicyWizardStore((s) => s.setEscalationEnabled);
   const setSquadsMultisig = useCreatePolicyWizardStore((s) => s.setSquadsMultisig);
   const setEscalationThresholdSol = useCreatePolicyWizardStore((s) => s.setEscalationThresholdSol);
+  const escalationThresholdInput = useBufferedNumberInput(
+    escalationThresholdSol,
+    setEscalationThresholdSol,
+    Number.parseFloat,
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -263,8 +302,9 @@ function EscalationStep({ fieldErrors }: { fieldErrors: Record<string, string> }
               min={0}
               step="any"
               className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-zinc-100 outline-none transition-all duration-200 focus:border-blue-700/60 focus:ring-1 focus:ring-blue-500/30"
-              value={Number.isFinite(escalationThresholdSol) ? escalationThresholdSol : ""}
-              onChange={(e) => setEscalationThresholdSol(Number.parseFloat(e.target.value) || 0)}
+              value={escalationThresholdInput.inputValue}
+              onBlur={escalationThresholdInput.commitValue}
+              onChange={(e) => escalationThresholdInput.setInputValue(e.target.value)}
             />
             {fieldErrors.escalationThresholdSol ? (
               <span className="text-red-400">{fieldErrors.escalationThresholdSol}</span>
