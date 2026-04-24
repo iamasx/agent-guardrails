@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/app-shell";
+import { SiwsSignIn } from "@/components/auth/siws-sign-in";
 
 export default function SignInPage() {
   return (
@@ -6,7 +7,7 @@ export default function SignInPage() {
       title="Sign In"
       subtitle="Authenticate with your wallet using SIWS."
     >
-      <div className="empty">SIWS nonce/sign/verify flow is implemented in Phase 3.</div>
+      <SiwsSignIn />
     </AppShell>
   );
 }

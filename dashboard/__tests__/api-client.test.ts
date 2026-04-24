@@ -9,6 +9,7 @@ import {
   fetchPolicy,
   fetchTransactions,
   getErrorMessage,
+  isUnauthorizedError,
 } from "@/lib/api/client";
 import { INCIDENTS, POLICIES } from "@/lib/mock";
 
@@ -77,17 +78,32 @@ describe("api client mock data", () => {
 describe("api client http mode behavior", () => {
   it("builds request init with cookie credentials and JSON Accept header", () => {
     const requestInit = buildApiRequestInit();
-    expect(requestInit).toMatchObject({
-      credentials: "include",
-      headers: {
-        Accept: "application/json",
-      },
+    expect(requestInit.credentials).toBe("include");
+    expect(requestInit.headers).toBeInstanceOf(Headers);
+    expect((requestInit.headers as Headers).get("Accept")).toBe("application/json");
+  });
+
+  it("merges Content-Type without dropping credentials include", () => {
+    const requestInit = buildApiRequestInit({
+      method: "POST",
+      credentials: "omit",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
     });
+    expect(requestInit.credentials).toBe("include");
+    expect((requestInit.headers as Headers).get("Content-Type")).toBe("application/json");
+    expect((requestInit.headers as Headers).get("Accept")).toBe("application/json");
   });
 
   it("normalizes ApiClientError message", () => {
     const err = new ApiClientError(401, "Unauthorized");
     expect(getErrorMessage(err)).toBe("Unauthorized");
+  });
+
+  it("isUnauthorizedError is true only for 401 ApiClientError", () => {
+    expect(isUnauthorizedError(new ApiClientError(401, "nope"))).toBe(true);
+    expect(isUnauthorizedError(new ApiClientError(403, "nope"))).toBe(false);
+    expect(isUnauthorizedError(new Error("x"))).toBe(false);
   });
 });
 

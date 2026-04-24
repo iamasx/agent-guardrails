@@ -3,10 +3,12 @@
 import React, { type ComponentType, useMemo, useState, type ReactNode } from "react";
 import { AnchorProvider } from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConnectionProvider, WalletProvider, useWallet } from "@solana/wallet-adapter-react";
+import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import type { Adapter } from "@solana/wallet-adapter-base";
 import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
+import { ApiClientError, isUnauthorizedError } from "@/lib/api/client";
 import { useSSE } from "@/lib/sse/useSSE";
 
 const RPC_ENDPOINT = process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
@@ -37,10 +39,25 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
+        queryCache: new QueryCache({
+          onError: (error) => {
+            if (typeof window === "undefined") return;
+            if (window.location.pathname === "/signin") return;
+            if (isUnauthorizedError(error)) {
+              window.location.assign("/signin");
+            }
+          },
+        }),
         defaultOptions: {
           queries: {
             staleTime: 30_000,
             refetchOnWindowFocus: false,
+            retry: (failureCount, error) => {
+              if (error instanceof ApiClientError && error.status === 401) {
+                return false;
+              }
+              return failureCount < 3;
+            },
           },
         },
       }),
@@ -51,10 +68,12 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <SafeConnectionProvider endpoint={RPC_ENDPOINT}>
       <SafeWalletProvider wallets={wallets} autoConnect>
-        <QueryClientProvider client={queryClient}>
-          <RealtimeBridge />
-          {children}
-        </QueryClientProvider>
+        <WalletModalProvider>
+          <QueryClientProvider client={queryClient}>
+            <RealtimeBridge />
+            {children}
+          </QueryClientProvider>
+        </WalletModalProvider>
       </SafeWalletProvider>
     </SafeConnectionProvider>
   );

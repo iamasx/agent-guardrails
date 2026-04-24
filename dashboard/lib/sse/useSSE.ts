@@ -1,5 +1,6 @@
 // TODO: SSE hook for realtime updates
-// - EventSource connection to server GET /api/events (withCredentials: true)
+// - EventSource connection to server GET /api/events — use { withCredentials: true } so the
+//   httpOnly session cookie is sent (same requirement as fetch credentials: "include").
 // - Listen for: new_transaction, verdict, agent_paused, report_ready
 // - Parse full payload from each event (JSON in e.data)
 // - Insert directly into TanStack Query cache via setQueryData (no refetch)

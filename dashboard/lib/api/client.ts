@@ -17,13 +17,23 @@ const DEFAULT_INCIDENTS_LIMIT = 25;
 const DEFAULT_ERROR_MESSAGE = "Something went wrong while contacting the API.";
 
 export function buildApiRequestInit(init?: RequestInit): RequestInit {
+  const { headers: initHeaders, credentials: _ignored, ...rest } = init ?? {};
+  const headers = new Headers({ Accept: "application/json" });
+  if (initHeaders instanceof Headers) {
+    initHeaders.forEach((value, key) => headers.set(key, value));
+  } else if (Array.isArray(initHeaders)) {
+    for (const [key, value] of initHeaders) {
+      headers.set(key, value);
+    }
+  } else if (initHeaders && typeof initHeaders === "object") {
+    for (const [key, value] of Object.entries(initHeaders)) {
+      if (value !== undefined) headers.set(key, String(value));
+    }
+  }
   return {
+    ...rest,
     credentials: "include",
-    headers: {
-      Accept: "application/json",
-      ...(init?.headers ?? {}),
-    },
-    ...init,
+    headers,
   };
 }
 
@@ -40,6 +50,22 @@ function toQueryString(params: URLSearchParams): string {
   return query ? `?${query}` : "";
 }
 
+async function throwIfNotOk(response: Response): Promise<never> {
+  const raw = await response.text().catch(() => "");
+  let payload: ApiErrorPayload | null = null;
+  let errorMessage = "";
+  try {
+    payload = JSON.parse(raw) as ApiErrorPayload;
+    errorMessage =
+      (typeof payload?.error === "string" && payload.error) ||
+      (typeof payload?.message === "string" && payload.message) ||
+      "";
+  } catch {
+    errorMessage = raw;
+  }
+  throw new ApiClientError(response.status, errorMessage || DEFAULT_ERROR_MESSAGE, payload);
+}
+
 async function getJson<T>(path: string): Promise<T> {
   if (!API_URL) {
     throw new Error("NEXT_PUBLIC_API_URL is not configured");
@@ -48,19 +74,28 @@ async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, buildApiRequestInit());
 
   if (!response.ok) {
-    const raw = await response.text().catch(() => "");
-    let payload: ApiErrorPayload | null = null;
-    let errorMessage = "";
-    try {
-      payload = JSON.parse(raw) as ApiErrorPayload;
-      errorMessage =
-        (typeof payload?.error === "string" && payload.error) ||
-        (typeof payload?.message === "string" && payload.message) ||
-        "";
-    } catch {
-      errorMessage = raw;
-    }
-    throw new ApiClientError(response.status, errorMessage || DEFAULT_ERROR_MESSAGE, payload);
+    await throwIfNotOk(response);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  if (!API_URL) {
+    throw new Error("NEXT_PUBLIC_API_URL is not configured");
+  }
+
+  const response = await fetch(
+    `${API_URL}${path}`,
+    buildApiRequestInit({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  );
+
+  if (!response.ok) {
+    await throwIfNotOk(response);
   }
 
   return response.json() as Promise<T>;
@@ -86,6 +121,10 @@ export function getErrorMessage(error: unknown, fallback = DEFAULT_ERROR_MESSAGE
     return error.message || fallback;
   }
   return fallback;
+}
+
+export function isUnauthorizedError(error: unknown): boolean {
+  return error instanceof ApiClientError && error.status === 401;
 }
 
 function buildVerdictMap(): Map<string, VerdictSummary> {
@@ -160,14 +199,18 @@ function paginate<T extends { id: string }>(items: T[], before?: string, limit =
   };
 }
 
-export async function requestSiwsNonce(walletPubkey: string): Promise<{ nonce: string; message: string }> {
+export async function requestSiwsNonce(pubkey: string): Promise<{ nonce: string; message: string }> {
+  if (!USE_MOCK_API) {
+    return postJson<{ nonce: string; message: string }>("/api/auth/siws/nonce", { pubkey });
+  }
+
   const nonce = "mock-dashboard-nonce";
   return {
     nonce,
     message: [
       "Agent Guardrails Dashboard",
       "",
-      `Wallet: ${walletPubkey}`,
+      `Wallet: ${pubkey}`,
       `Nonce: ${nonce}`,
       "Sign this message to verify wallet ownership.",
     ].join("\n"),
@@ -175,14 +218,21 @@ export async function requestSiwsNonce(walletPubkey: string): Promise<{ nonce: s
 }
 
 export async function verifySiwsSignature(payload: {
-  walletPubkey: string;
+  pubkey: string;
   message: string;
   signature: string;
-}): Promise<{ ok: boolean; walletPubkey: string }> {
+}): Promise<{ ok: true }> {
   if (!payload.signature) {
     throw new Error("Missing signature");
   }
-  return { ok: true, walletPubkey: payload.walletPubkey };
+  if (!USE_MOCK_API) {
+    return postJson<{ ok: true }>("/api/auth/siws/verify", {
+      pubkey: payload.pubkey,
+      signature: payload.signature,
+      message: payload.message,
+    });
+  }
+  return { ok: true };
 }
 
 export async function fetchPolicies(): Promise<PolicySummary[]> {
