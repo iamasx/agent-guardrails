@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/app-shell";
+import { CreatePolicyWizard } from "@/components/create-policy-wizard/CreatePolicyWizard";
 
 export default function NewAgentPage() {
   return (
@@ -6,7 +7,7 @@ export default function NewAgentPage() {
       title="Create Policy"
       subtitle="Define program allow-lists, spend limits, and escalation controls."
     >
-      <div className="empty">The 4-step create policy wizard is implemented in Phase 4.</div>
+      <CreatePolicyWizard />
     </AppShell>
   );
 }

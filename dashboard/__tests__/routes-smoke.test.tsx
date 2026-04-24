@@ -91,6 +91,7 @@ describe("phase 1 route smoke tests", () => {
     const NewAgentPage = (await import("@/app/agents/new/page")).default;
     render(createElement(NewAgentPage));
     expect(screen.getByText("Create Policy")).toBeTruthy();
+    expect(screen.getByText("1. Programs")).toBeTruthy();
     cleanup();
 
     const ActivityPage = (await import("@/app/activity/page")).default;
