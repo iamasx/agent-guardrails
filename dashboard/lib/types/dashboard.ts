@@ -32,6 +32,7 @@ export interface PaginatedResponse<T> {
 export interface ApiErrorPayload {
   error?: string;
   message?: string;
+  details?: string;
 }
 
 export type ApiListResponse<T> = PaginatedResponse<T> | T[];

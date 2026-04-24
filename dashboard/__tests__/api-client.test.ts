@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { apiMode, fetchIncident, fetchIncidents, fetchPolicies, fetchPolicy, fetchTransactions } from "@/lib/api/client";
+import {
+  ApiClientError,
+  apiMode,
+  buildApiRequestInit,
+  fetchIncident,
+  fetchIncidents,
+  fetchPolicies,
+  fetchPolicy,
+  fetchTransactions,
+  getErrorMessage,
+} from "@/lib/api/client";
 import { INCIDENTS, POLICIES } from "@/lib/mock";
 
 describe("api client mock data", () => {
@@ -61,5 +71,29 @@ describe("api client mock data", () => {
       const secondPage = await fetchIncidents(undefined, firstPage.nextCursor, 1);
       expect(secondPage.items[0]?.id).not.toEqual(firstPage.items[0].id);
     }
+  });
+});
+
+describe("api client http mode behavior", () => {
+  it("builds request init with cookie credentials and JSON Accept header", () => {
+    const requestInit = buildApiRequestInit();
+    expect(requestInit).toMatchObject({
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+  });
+
+  it("normalizes ApiClientError message", () => {
+    const err = new ApiClientError(401, "Unauthorized");
+    expect(getErrorMessage(err)).toBe("Unauthorized");
+  });
+});
+
+describe("error helper", () => {
+  it("returns normalized messages from unknown error values", () => {
+    expect(getErrorMessage("bad")).toContain("Something went wrong");
+    expect(getErrorMessage(new Error("Known error"))).toBe("Known error");
   });
 });

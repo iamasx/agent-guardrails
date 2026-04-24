@@ -1,6 +1,7 @@
 "use client";
 
 import { usePoliciesQuery } from "@/lib/api/use-policies-query";
+import { getErrorMessage } from "@/lib/api/client";
 
 export function AgentsOverview() {
   const { data, isLoading, isError, error } = usePoliciesQuery();
@@ -10,7 +11,7 @@ export function AgentsOverview() {
   }
 
   if (isError) {
-    return <div className="empty">Unable to load policies: {error.message}</div>;
+    return <div className="empty">Unable to load policies: {getErrorMessage(error)}</div>;
   }
 
   return (

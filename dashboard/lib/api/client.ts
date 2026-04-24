@@ -14,6 +14,18 @@ const USE_MOCK_API = process.env.NEXT_PUBLIC_USE_MOCK_API === "true" || !API_URL
 export const apiMode = USE_MOCK_API ? "mock" : "http";
 const DEFAULT_TRANSACTIONS_LIMIT = 50;
 const DEFAULT_INCIDENTS_LIMIT = 25;
+const DEFAULT_ERROR_MESSAGE = "Something went wrong while contacting the API.";
+
+export function buildApiRequestInit(init?: RequestInit): RequestInit {
+  return {
+    credentials: "include",
+    headers: {
+      Accept: "application/json",
+      ...(init?.headers ?? {}),
+    },
+    ...init,
+  };
+}
 
 function normalizeLimit(limit: number, fallback: number): number {
   if (!Number.isFinite(limit) || limit <= 0) {
@@ -32,22 +44,43 @@ async function getJson<T>(path: string): Promise<T> {
     throw new Error("NEXT_PUBLIC_API_URL is not configured");
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    credentials: "include",
-  });
+  const response = await fetch(`${API_URL}${path}`, buildApiRequestInit());
 
   if (!response.ok) {
+    let payload: ApiErrorPayload | null = null;
     let errorMessage = "";
     try {
-      const payload = (await response.json()) as ApiErrorPayload;
+      payload = (await response.json()) as ApiErrorPayload;
       errorMessage = payload.error ?? payload.message ?? "";
     } catch {
       errorMessage = await response.text().catch(() => "");
     }
-    throw new Error(`Request failed (${response.status})${errorMessage ? `: ${errorMessage}` : ""}`);
+    throw new ApiClientError(response.status, errorMessage || DEFAULT_ERROR_MESSAGE, payload);
   }
 
   return response.json() as Promise<T>;
+}
+
+export class ApiClientError extends Error {
+  status: number;
+  payload: ApiErrorPayload | null;
+
+  constructor(status: number, message: string, payload: ApiErrorPayload | null = null) {
+    super(message);
+    this.name = "ApiClientError";
+    this.status = status;
+    this.payload = payload;
+  }
+}
+
+export function getErrorMessage(error: unknown, fallback = DEFAULT_ERROR_MESSAGE): string {
+  if (error instanceof ApiClientError) {
+    return error.message || fallback;
+  }
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+  return fallback;
 }
 
 function buildVerdictMap(): Map<string, VerdictSummary> {
