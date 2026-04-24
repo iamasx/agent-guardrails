@@ -50,6 +50,16 @@ vi.mock("@/lib/stores/activity", () => ({
   }),
 }));
 
+vi.mock("@/lib/stores/activity-filters", () => ({
+  useActivityFiltersStore: () => ({
+    selectedPolicyPubkey: null,
+    verdictFilter: "all",
+    setSelectedPolicy: vi.fn(),
+    setVerdictFilter: vi.fn(),
+    resetFilters: vi.fn(),
+  }),
+}));
+
 beforeEach(() => {
   useQueryMock.mockReset();
   useQueryMock.mockReturnValue({ data: undefined, isLoading: false });

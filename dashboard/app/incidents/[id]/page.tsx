@@ -1,12 +1,5 @@
-import { AppShell } from "@/components/app-shell";
+import { IncidentDetailView } from "@/app/incidents/[id]/incident-detail-view";
 
 export default function IncidentDetailPage({ params }: { params: { id: string } }) {
-  return (
-    <AppShell
-      title="Incident Detail"
-      subtitle="Timeline and model reasoning for a specific pause."
-    >
-      <div className="empty">Incident id: {params.id}</div>
-    </AppShell>
-  );
+  return <IncidentDetailView id={params.id} />;
 }
