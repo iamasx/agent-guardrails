@@ -1,4 +1,4 @@
-import { AppShell } from "@/components/app-shell";
+import { AppShell } from "@/components/dashboard-ui";
 import { AgentsOverview } from "@/app/agents/agents-overview";
 
 export default function AgentsPage() {

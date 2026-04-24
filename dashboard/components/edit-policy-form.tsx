@@ -64,7 +64,7 @@ export function EditPolicyForm({ policyPubkey }: { policyPubkey: string }) {
     if (!toastError) return;
     const timeout = window.setTimeout(() => setToastError(null), 5000);
     return () => window.clearTimeout(timeout);
-  }, [toastError?.id]);
+  }, [toastError]);
 
   useEffect(() => {
     if (policyQuery.data && initializedDraftForPubkeyRef.current !== policyPubkey) {
@@ -168,7 +168,7 @@ export function EditPolicyForm({ policyPubkey }: { policyPubkey: string }) {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       {toastError ? (
         <div
           role="status"
@@ -179,7 +179,7 @@ export function EditPolicyForm({ policyPubkey }: { policyPubkey: string }) {
         </div>
       ) : null}
       {saveBanner ? (
-        <div className="rounded-md border border-emerald-900/50 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-200">
+        <div className="rounded-md border border-blue-900/50 bg-blue-950/30 px-3 py-2 text-sm text-blue-200">
           {saveBanner}
         </div>
       ) : null}
@@ -189,14 +189,32 @@ export function EditPolicyForm({ policyPubkey }: { policyPubkey: string }) {
         </div>
       ) : null}
 
-      {!isOwner ? (
-        <p className="text-sm text-zinc-500">
-          Connect the owner wallet ({shortenPubkey(policy.owner)}) to edit this policy.
-        </p>
-      ) : null}
+      <section className="rounded-2xl border border-blue-950/40 bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 p-5 shadow-lg shadow-blue-950/20 backdrop-blur-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-zinc-100">Policy configuration</h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              Fine-tune spend controls, program allow-list, and escalation safeguards for this policy.
+            </p>
+          </div>
+          <div className="inline-flex items-center rounded-full border border-zinc-800/60 bg-zinc-900/50 px-3 py-1.5 text-xs font-medium text-zinc-300">
+            {isOwner ? "Owner wallet connected" : `Owner required: ${shortenPubkey(policy.owner)}`}
+          </div>
+        </div>
+        {!isOwner ? (
+          <p className="mt-3 text-sm text-amber-300/90">
+            Connect the owner wallet ({shortenPubkey(policy.owner)}) to edit this policy.
+          </p>
+        ) : null}
+      </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-zinc-200">Allowed programs</h2>
+      <section className="flex flex-col gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/35 p-5 backdrop-blur-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-200">Allowed programs</h2>
+          <span className="inline-flex items-center rounded-full border border-blue-900/40 bg-blue-950/30 px-3 py-1 text-xs font-medium text-blue-200">
+            {draft.allowedPrograms.length} / 10 selected
+          </span>
+        </div>
         {fieldErrors.allowedPrograms ? (
           <p className="text-sm text-red-400">{fieldErrors.allowedPrograms}</p>
         ) : null}
@@ -208,10 +226,10 @@ export function EditPolicyForm({ policyPubkey }: { policyPubkey: string }) {
               <button
                 key={pk}
                 type="button"
-                className={`rounded-md border px-3 py-1.5 text-sm ${
+                className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
                   selected
-                    ? "border-emerald-600 bg-emerald-950/40 text-emerald-200"
-                    : "border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                    ? "border-blue-600 bg-blue-950/40 text-blue-200 shadow-sm shadow-blue-900/30"
+                    : "border-zinc-700 text-zinc-300 hover:border-blue-700/60 hover:bg-blue-950/30"
                 }`}
                 disabled={!isOwner || (!selected && draft.allowedPrograms.length >= 10)}
                 onClick={() => {
@@ -226,7 +244,7 @@ export function EditPolicyForm({ policyPubkey }: { policyPubkey: string }) {
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <input
-            className="min-w-[200px] flex-1 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+            className="min-w-[200px] flex-1 rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 outline-none transition-all duration-200 placeholder:text-zinc-500 focus:border-blue-700/60 focus:ring-1 focus:ring-blue-500/30"
             value={programInput}
             placeholder="Custom program pubkey…"
             disabled={!isOwner}
@@ -250,7 +268,7 @@ export function EditPolicyForm({ policyPubkey }: { policyPubkey: string }) {
           />
           <button
             type="button"
-            className="rounded-md border border-zinc-600 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+            className="rounded-lg border border-zinc-600 px-3 py-2 text-sm font-medium text-zinc-200 transition-all duration-200 hover:border-blue-700/70 hover:bg-blue-950/30 hover:text-blue-100 disabled:opacity-50"
             disabled={!isOwner}
             onClick={() => {
               setPasteError(null);
@@ -274,14 +292,14 @@ export function EditPolicyForm({ policyPubkey }: { policyPubkey: string }) {
           {draft.allowedPrograms.map((pk) => (
             <li
               key={pk}
-              className="flex items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-sm"
+              className="flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-sm"
             >
               <span className="font-mono text-zinc-200" title={pk}>
                 {PROGRAM_LABELS[pk] ?? shortenPubkey(pk)}
               </span>
               <button
                 type="button"
-                className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
+                className="text-xs font-medium text-red-400 transition-colors duration-150 hover:text-red-300 disabled:opacity-50"
                 disabled={!isOwner}
                 onClick={() => removeProgram(pk)}
               >
@@ -292,14 +310,14 @@ export function EditPolicyForm({ policyPubkey }: { policyPubkey: string }) {
         </ul>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
+      <section className="grid gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/35 p-5 backdrop-blur-sm md:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm text-zinc-400">
           Max per transaction (SOL)
           <input
             type="number"
             min={0}
             step="any"
-            className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100"
+            className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-zinc-100 outline-none transition-all duration-200 focus:border-blue-700/60 focus:ring-1 focus:ring-blue-500/30"
             disabled={!isOwner}
             value={Number.isFinite(draft.maxTxSol) ? draft.maxTxSol : ""}
             onChange={(e) => updateDraft({ maxTxSol: Number.parseFloat(e.target.value) || 0 })}
@@ -312,7 +330,7 @@ export function EditPolicyForm({ policyPubkey }: { policyPubkey: string }) {
             type="number"
             min={0}
             step="any"
-            className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100"
+            className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-zinc-100 outline-none transition-all duration-200 focus:border-blue-700/60 focus:ring-1 focus:ring-blue-500/30"
             disabled={!isOwner}
             value={Number.isFinite(draft.dailyBudgetSol) ? draft.dailyBudgetSol : ""}
             onChange={(e) => updateDraft({ dailyBudgetSol: Number.parseFloat(e.target.value) || 0 })}
@@ -323,7 +341,7 @@ export function EditPolicyForm({ policyPubkey }: { policyPubkey: string }) {
         </label>
       </section>
 
-      <section>
+      <section className="rounded-2xl border border-zinc-800/60 bg-zinc-900/35 p-5 backdrop-blur-sm">
         <label className="flex max-w-xs flex-col gap-1 text-sm text-zinc-400">
           Session length (days from now, 1–90)
           <input
@@ -331,7 +349,7 @@ export function EditPolicyForm({ policyPubkey }: { policyPubkey: string }) {
             min={1}
             max={90}
             step={1}
-            className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100"
+            className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-zinc-100 outline-none transition-all duration-200 focus:border-blue-700/60 focus:ring-1 focus:ring-blue-500/30"
             disabled={!isOwner}
             value={Number.isFinite(draft.sessionDays) ? draft.sessionDays : ""}
             onChange={(e) => updateDraft({ sessionDays: Number.parseInt(e.target.value, 10) || 0 })}
@@ -342,11 +360,11 @@ export function EditPolicyForm({ policyPubkey }: { policyPubkey: string }) {
         </label>
       </section>
 
-      <section className="flex flex-col gap-3">
+      <section className="flex flex-col gap-3 rounded-2xl border border-zinc-800/60 bg-zinc-900/35 p-5 backdrop-blur-sm">
         <label className="flex items-center gap-2 text-sm text-zinc-200">
           <input
             type="checkbox"
-            className="rounded border-zinc-600"
+            className="h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-blue-500 focus:ring-blue-500/50"
             disabled={!isOwner}
             checked={draft.escalationEnabled}
             onChange={(e) =>
@@ -363,7 +381,7 @@ export function EditPolicyForm({ policyPubkey }: { policyPubkey: string }) {
             <label className="flex flex-col gap-1 text-sm text-zinc-400">
               Squads multisig address
               <input
-                className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-sm text-zinc-100"
+                className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 font-mono text-sm text-zinc-100 outline-none transition-all duration-200 focus:border-blue-700/60 focus:ring-1 focus:ring-blue-500/30"
                 disabled={!isOwner}
                 value={draft.squadsMultisig}
                 onChange={(e) => updateDraft({ squadsMultisig: e.target.value })}
@@ -378,7 +396,7 @@ export function EditPolicyForm({ policyPubkey }: { policyPubkey: string }) {
                 type="number"
                 min={0}
                 step="any"
-                className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100"
+                className="rounded-lg border border-zinc-700 bg-zinc-950/80 px-3 py-2 text-zinc-100 outline-none transition-all duration-200 focus:border-blue-700/60 focus:ring-1 focus:ring-blue-500/30"
                 disabled={!isOwner}
                 value={Number.isFinite(draft.escalationThresholdSol) ? draft.escalationThresholdSol : ""}
                 onChange={(e) =>
@@ -399,14 +417,16 @@ export function EditPolicyForm({ policyPubkey }: { policyPubkey: string }) {
         save, matching policy creation.
       </p>
 
-      <button
-        type="button"
-        className="w-fit rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={!isOwner || !walletReady || saving}
-        onClick={() => void onSave()}
-      >
-        {saving ? "Saving…" : "Save on-chain"}
-      </button>
+      <div className="sticky bottom-3 z-20 flex justify-end">
+        <button
+          type="button"
+          className="button button-primary w-fit px-4 py-2.5 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!isOwner || !walletReady || saving}
+          onClick={() => void onSave()}
+        >
+          {saving ? "Saving…" : "Save on-chain"}
+        </button>
+      </div>
     </div>
   );
 }

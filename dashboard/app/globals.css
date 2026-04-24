@@ -10,243 +10,39 @@
 
   body {
     @apply bg-zinc-950 text-zinc-100 antialiased;
+    background-image:
+      radial-gradient(circle at 10% -10%, rgba(59, 130, 246, 0.18), transparent 45%),
+      radial-gradient(circle at 100% 0%, rgba(14, 165, 233, 0.12), transparent 35%);
   }
 }
 
 @layer components {
-  /* --- App shell (simple pages: app-shell.tsx) --- */
-  .shell {
-    @apply mx-auto min-h-screen w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6;
-  }
-
-  .topbar {
-    @apply mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-4;
-  }
-
-  .title {
-    @apply text-2xl font-semibold tracking-tight text-zinc-50;
-  }
-
-  .subtitle {
-    @apply text-sm text-zinc-400;
-  }
-
-  .nav {
-    @apply mb-6 flex flex-wrap gap-2;
-  }
-
-  .nav-link {
-    @apply rounded-md border border-zinc-800 px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-zinc-100;
-  }
-
-  .card {
-    @apply rounded-xl border border-zinc-800 bg-zinc-900/40 p-5;
-  }
-
-  .empty {
-    @apply text-sm text-zinc-400;
-  }
-
-  /* --- Dashboard AppShell (dashboard-ui): responsive flex + drawer --- */
-  .shell-dash {
-    @apply mx-auto flex min-h-screen w-full max-w-7xl flex-row gap-0 overflow-x-hidden px-3 py-4 sm:px-5 md:gap-6 md:px-6 md:py-6;
-  }
-
-  .sidebar-backdrop {
-    @apply fixed inset-0 z-30 bg-black/50 md:hidden;
-  }
-
-  .sidebar {
-    @apply fixed left-0 top-0 z-40 flex h-full w-[min(18rem,88vw)] -translate-x-full flex-col gap-4 border-r border-zinc-800 bg-zinc-950/95 p-4 shadow-xl backdrop-blur-sm transition-transform duration-200 ease-out md:static md:z-0 md:h-auto md:w-56 md:shrink-0 md:translate-x-0 md:border-r-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none;
-  }
-
-  .sidebar.is-open {
-    @apply translate-x-0;
-  }
-
-  .main {
-    @apply min-w-0 flex-1 overflow-x-hidden;
-  }
-
-  .main > .topbar {
-    @apply mb-6 flex flex-wrap items-start justify-between gap-3 border-b border-zinc-800 pb-4;
-  }
-
-  .page-title {
-    @apply min-w-0 text-xl font-semibold tracking-tight text-zinc-50 sm:text-2xl;
-  }
-
-  .page-subtitle {
-    @apply mt-1 text-sm text-zinc-400;
-  }
-
-  .toolbar {
-    @apply flex shrink-0 flex-wrap items-center justify-end gap-2;
-  }
-
-  .brand {
-    @apply flex items-center gap-3;
-  }
-
-  .brand-mark {
-    @apply flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-600 text-lg font-bold text-white;
-  }
-
-  .brand-copy {
-    @apply flex flex-col text-sm leading-tight;
-  }
-
-  .brand-copy strong {
-    @apply text-zinc-100;
-  }
-
-  .brand-copy span {
-    @apply text-xs text-zinc-500;
-  }
-
-  .sidebar .nav {
-    @apply mb-0 flex flex-col gap-1;
-  }
-
-  .sidebar .nav-link.active {
-    @apply border-emerald-800 bg-emerald-950/50 text-emerald-200;
-  }
-
   .button {
-    @apply inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors;
-  }
-
-  .button-secondary {
-    @apply border border-zinc-600 text-zinc-200 hover:bg-zinc-800;
+    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .button-primary {
-    @apply bg-emerald-600 text-white hover:bg-emerald-500;
+    @apply bg-emerald-600 text-white hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950;
   }
 
-  .wallet-strip {
-    @apply min-w-0;
+  .button-secondary {
+    @apply border border-zinc-700 bg-zinc-800 text-zinc-100 hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950;
   }
+}
 
-  .spread {
-    @apply flex flex-wrap items-start justify-between gap-3;
+@keyframes shimmer {
+  to {
+    background-position-x: -220%;
   }
+}
 
-  .muted {
-    @apply text-sm text-zinc-500;
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
   }
-
-  .mono {
-    @apply font-mono text-xs text-zinc-400 sm:text-sm;
-  }
-
-  .card-title {
-    @apply text-xs font-medium uppercase tracking-wide text-zinc-500;
-  }
-
-  .metric {
-    @apply min-w-0;
-  }
-
-  .metric-label {
-    @apply text-xs text-zinc-500;
-  }
-
-  .metric-value {
-    @apply text-lg font-semibold text-zinc-100;
-  }
-
-  /* Named layout-three — avoid .grid + @apply grid (Tailwind circular dependency in @layer). */
-  .layout-three {
-    @apply grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3;
-  }
-
-  .row-card {
-    @apply rounded-xl border border-zinc-800 bg-zinc-900/40 p-4;
-  }
-
-  .row-main {
-    @apply flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between;
-  }
-
-  .chip {
-    @apply inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium;
-  }
-
-  .chip-green {
-    @apply bg-emerald-950/80 text-emerald-300;
-  }
-
-  .chip-amber {
-    @apply bg-amber-950/80 text-amber-200;
-  }
-
-  .chip-red {
-    @apply bg-red-950/80 text-red-300;
-  }
-
-  .chip-slate {
-    @apply bg-zinc-800 text-zinc-300;
-  }
-
-  .table-scroll {
-    @apply -mx-5 overflow-x-auto sm:mx-0;
-  }
-
-  .table {
-    @apply w-full min-w-[36rem] border-collapse text-left text-sm;
-  }
-
-  .table th {
-    @apply border-b border-zinc-700 px-3 py-2 font-medium text-zinc-400;
-  }
-
-  .table td {
-    @apply border-b border-zinc-800 px-3 py-3 text-zinc-300;
-  }
-
-  .timeline {
-    @apply flex flex-col gap-4 border-l border-zinc-800 pl-4;
-  }
-
-  .timeline-item {
-    @apply relative pl-2;
-  }
-
-  .timeline-item.red strong {
-    @apply text-red-300;
-  }
-
-  .timeline-item.amber strong {
-    @apply text-amber-200;
-  }
-
-  .timeline-item.green strong {
-    @apply text-emerald-300;
-  }
-
-  /* Legacy SimpleMarkdown (fallback); ReportMarkdown uses report-markdown classes */
-  .markdown h1 {
-    @apply mb-3 text-2xl font-semibold text-zinc-50;
-  }
-
-  .markdown h2 {
-    @apply mb-2 text-xl font-semibold text-zinc-100;
-  }
-
-  .markdown h3 {
-    @apply mb-2 text-lg font-medium text-zinc-200;
-  }
-
-  .markdown p {
-    @apply mb-2 text-zinc-300;
-  }
-
-  .markdown li {
-    @apply ml-4 list-disc text-zinc-300;
-  }
-
-  .markdown pre {
-    @apply mb-2 overflow-x-auto rounded-md bg-zinc-950 p-2 text-xs text-zinc-400;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

@@ -50,7 +50,7 @@ export function ActivityView() {
 
       <div className="mb-4 flex flex-wrap gap-2.5">
         <select
-          className="input"
+          className="w-full rounded-lg border border-zinc-800/70 bg-zinc-950/60 px-4 py-3 text-sm text-zinc-200 outline-none transition-all duration-200 focus:border-blue-700/60 focus:bg-zinc-950/80 focus:ring-1 focus:ring-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50"
           value={selectedPolicyPubkey ?? ""}
           onChange={(event) => setSelectedPolicy(event.target.value || null)}
           aria-label="Filter by policy"
@@ -63,7 +63,7 @@ export function ActivityView() {
           ))}
         </select>
         <select
-          className="input"
+          className="w-full rounded-lg border border-zinc-800/70 bg-zinc-950/60 px-4 py-3 text-sm text-zinc-200 outline-none transition-all duration-200 focus:border-blue-700/60 focus:bg-zinc-950/80 focus:ring-1 focus:ring-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50"
           value={verdictFilter}
           onChange={(event) => setVerdictFilter(event.target.value as "all" | "allow" | "flag" | "pause")}
           aria-label="Filter by verdict"
@@ -97,7 +97,7 @@ export function ActivityView() {
         <div className="mt-6 flex justify-center">
           <button
             type="button"
-            className="rounded-md border border-zinc-600 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+            className="button button-secondary disabled:opacity-50"
             disabled={transactionsQuery.isFetchingNextPage}
             onClick={() => void transactionsQuery.fetchNextPage()}
           >

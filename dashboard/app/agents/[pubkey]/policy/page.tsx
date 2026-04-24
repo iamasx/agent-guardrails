@@ -1,4 +1,4 @@
-import { AppShell } from "@/components/app-shell";
+import { AppShell } from "@/components/dashboard-ui";
 import { EditPolicyForm } from "@/components/edit-policy-form";
 
 export default function EditPolicyPage({ params }: { params: { pubkey: string } }) {

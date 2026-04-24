@@ -65,7 +65,7 @@ export function IncidentDetailView({ id }: { id: string }) {
 
   return (
     <AppShell title="Incident Detail" subtitle="Timeline and model reasoning for a specific pause.">
-      <div className="layout-three">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Metric label="Policy" value={incident.policy.label ?? shortAddress(incident.policy.pubkey)} />
         <Metric label="Paused by" value={incident.pausedBy} />
         <Metric
@@ -79,8 +79,8 @@ export function IncidentDetailView({ id }: { id: string }) {
       </div>
 
       {incident.fullReport ? (
-        <div className="card mt-4">
-          <div className="card-title">Incident report</div>
+        <div className="mt-4 rounded-2xl border border-blue-950/40 bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 p-6 shadow-lg shadow-blue-950/20 backdrop-blur-sm transition-all duration-300">
+          <div className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-sm font-bold uppercase tracking-widest text-transparent">Incident report</div>
           <ReportMarkdown markdown={incident.fullReport} />
         </div>
       ) : null}

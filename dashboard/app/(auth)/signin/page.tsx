@@ -1,4 +1,4 @@
-import { AppShell } from "@/components/app-shell";
+import { AppShell } from "@/components/dashboard-ui";
 import { SiwsSignIn } from "@/components/auth/siws-sign-in";
 
 export default function SignInPage() {

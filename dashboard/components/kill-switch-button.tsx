@@ -88,7 +88,7 @@ export function KillSwitchButton({ policy }: { policy: PolicySummary }) {
         </div>
       ) : null}
       {banner ? (
-        <div className="mb-3 rounded-md border border-emerald-900/50 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-200">
+        <div className="mb-3 rounded-md border border-blue-900/50 bg-blue-950/30 px-3 py-2 text-sm text-blue-200">
           {banner}
         </div>
       ) : null}
@@ -130,7 +130,7 @@ export function KillSwitchButton({ policy }: { policy: PolicySummary }) {
             <div className="mt-6 flex justify-end gap-2">
               <button
                 type="button"
-                className="rounded-md border border-zinc-600 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-800"
+                className="button button-secondary"
                 disabled={busy}
                 onClick={() => {
                   setOpen(false);

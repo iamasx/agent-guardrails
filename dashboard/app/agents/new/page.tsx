@@ -1,4 +1,4 @@
-import { AppShell } from "@/components/app-shell";
+import { AppShell } from "@/components/dashboard-ui";
 import { CreatePolicyWizard } from "@/components/create-policy-wizard/CreatePolicyWizard";
 
 export default function NewAgentPage() {

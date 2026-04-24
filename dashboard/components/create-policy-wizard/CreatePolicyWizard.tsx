@@ -150,7 +150,7 @@ export function CreatePolicyWizard() {
   const canSubmitStep = currentStep === 3;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
       {toastError ? (
         <div
           role="status"
@@ -169,18 +169,18 @@ export function CreatePolicyWizard() {
         />
       ) : null}
 
-      <nav aria-label="Wizard steps" className="flex flex-wrap gap-2">
+      <nav aria-label="Wizard steps" className="grid grid-cols-2 gap-2 md:grid-cols-4">
         {WIZARD_STEP_LABELS.map((label, index) => {
           const active = index === currentStep;
           const done = index < currentStep;
           return (
             <div
               key={label}
-              className={`rounded-md border px-3 py-1.5 text-sm ${
+              className={`rounded-md border px-3 py-2 text-sm ${
                 active
-                  ? "border-emerald-600 bg-emerald-950/30 text-emerald-200"
+                  ? "border-blue-600 bg-blue-950/40 text-blue-200"
                   : done
-                    ? "border-zinc-700 text-zinc-400"
+                    ? "border-blue-900/60 text-blue-200/80"
                     : "border-zinc-800 text-zinc-500"
               }`}
             >
@@ -196,11 +196,11 @@ export function CreatePolicyWizard() {
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+      <div className="rounded-xl border border-blue-900/40 bg-zinc-900/50 p-5 shadow-[0_20px_50px_-36px_rgba(59,130,246,0.65)] md:p-6">
         <WizardStepPanels />
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
         <button
           type="button"
           className="text-sm text-zinc-500 underline decoration-zinc-600 hover:text-zinc-300"
@@ -212,7 +212,7 @@ export function CreatePolicyWizard() {
           {currentStep > 0 ? (
             <button
               type="button"
-              className="rounded-md border border-zinc-600 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-800"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-800/50 bg-zinc-900/50 px-4 py-2.5 text-sm font-semibold text-zinc-200 transition-all duration-200 hover:border-blue-700/70 hover:bg-blue-950/40 hover:text-blue-100 active:bg-blue-950/50 focus-visible:ring-2 focus-visible:ring-offset-2"
               onClick={() => goBack()}
             >
               Back
@@ -221,7 +221,7 @@ export function CreatePolicyWizard() {
           {currentStep < 3 ? (
             <button
               type="button"
-              className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition-all duration-200 hover:from-blue-500 hover:to-blue-400 hover:shadow-xl hover:shadow-blue-500/40 active:shadow-md focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => goNext()}
             >
               Next
@@ -230,7 +230,7 @@ export function CreatePolicyWizard() {
             <button
               type="button"
               disabled={!walletReady || submitting}
-              className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition-all duration-200 hover:from-blue-500 hover:to-blue-400 hover:shadow-xl hover:shadow-blue-500/40 active:shadow-md focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               onClick={onCreateClick}
             >
               {submitting ? "Creating…" : "Create policy"}

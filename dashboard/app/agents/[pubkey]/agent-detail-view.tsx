@@ -44,7 +44,7 @@ export function AgentDetailView({ pubkey }: { pubkey: string }) {
       title={policy.label ?? "Agent Detail"}
       subtitle="Live status, spend view, and recent guarded activity."
     >
-      <div className="layout-three">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Metric label="Policy" value={shortenedPolicyPubkey} />
         <Metric label="Status" value={policy.isActive ? "Active" : "Paused"} />
         <Metric label="Session expiry" value={new Date(policy.sessionExpiry).toLocaleString()} />
@@ -52,16 +52,16 @@ export function AgentDetailView({ pubkey }: { pubkey: string }) {
 
       <KillSwitchButton policy={policy} />
 
-      <div className="card mt-4">
-        <div className="card-title">Daily spend</div>
+      <div className="mt-4 rounded-2xl border border-blue-950/40 bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 p-6 shadow-lg shadow-blue-950/20 backdrop-blur-sm transition-all duration-300">
+        <div className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-sm font-bold uppercase tracking-widest text-transparent">Daily spend</div>
         <SpendGauge
           spentLamports={String(policy.dailySpentLamports ?? "0")}
           budgetLamports={String(policy.dailyBudgetLamports)}
         />
       </div>
 
-      <div className="card mt-4">
-        <div className="card-title">Recent transactions</div>
+      <div className="mt-4 rounded-2xl border border-blue-950/40 bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 p-6 shadow-lg shadow-blue-950/20 backdrop-blur-sm transition-all duration-300">
+        <div className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-sm font-bold uppercase tracking-widest text-transparent">Recent transactions</div>
         {transactionsQuery.isLoading ? (
           <QueryLoading message="Loading transactions…" />
         ) : transactionsQuery.isError ? (
@@ -89,7 +89,7 @@ export function AgentDetailView({ pubkey }: { pubkey: string }) {
               <div className="mt-4 flex justify-center">
                 <button
                   type="button"
-                  className="rounded-md border border-zinc-600 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+                  className="button button-secondary disabled:opacity-50"
                   disabled={transactionsQuery.isFetchingNextPage}
                   onClick={() => void transactionsQuery.fetchNextPage()}
                 >
@@ -104,7 +104,7 @@ export function AgentDetailView({ pubkey }: { pubkey: string }) {
       </div>
 
       <div className="mt-4">
-        <div className="card-title">Related incidents</div>
+        <div className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-sm font-bold uppercase tracking-widest text-transparent">Related incidents</div>
         {incidentsQuery.isLoading ? (
           <QueryLoading message="Loading incidents…" />
         ) : incidentsQuery.isError ? (
