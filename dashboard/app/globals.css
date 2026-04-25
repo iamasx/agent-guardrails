@@ -18,15 +18,23 @@
 
 @layer components {
   .button {
-    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .button-primary {
-    @apply bg-emerald-600 text-white hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950;
+    @apply border border-blue-500 bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-[0_0_0_1px_rgba(59,130,246,0.85),0_0_24px_rgba(59,130,246,0.32)] hover:from-blue-500 hover:to-blue-400 hover:shadow-[0_0_0_1px_rgba(59,130,246,0.95),0_0_30px_rgba(59,130,246,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950;
   }
 
   .button-secondary {
-    @apply border border-zinc-700 bg-zinc-800 text-zinc-100 hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950;
+    @apply border border-[#2a3142] bg-[#10131c] text-zinc-100 hover:border-[#384056] hover:bg-[#151925] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950;
+  }
+
+  .panel-glow {
+    @apply rounded-xl border border-[#1e2433] bg-[#0b0d14] shadow-[0_12px_36px_-22px_rgba(59,130,246,0.35)] transition-all duration-300;
+  }
+
+  .panel-glow-hover {
+    @apply hover:border-[#2a3142] hover:shadow-[0_0_0_1px_rgba(59,130,246,0.25),0_0_24px_rgba(59,130,246,0.08)];
   }
 }
 

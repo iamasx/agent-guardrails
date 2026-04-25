@@ -41,7 +41,7 @@ export function AgentsOverview() {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]">
       {data.map((policy) => (
         <PolicyCard key={policy.pubkey} policy={policy} />
       ))}

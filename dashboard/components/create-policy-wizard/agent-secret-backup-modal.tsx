@@ -23,7 +23,7 @@ export function AgentSecretBackupModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
-      <div className="max-w-lg rounded-2xl border border-blue-950/40 bg-gradient-to-br from-zinc-900/95 to-zinc-900/80 p-6 shadow-2xl shadow-blue-950/30">
+      <div className="panel-glow max-w-lg bg-gradient-to-br from-zinc-900/95 to-zinc-900/80 p-6 shadow-2xl shadow-blue-950/30">
         <h2 className="text-lg font-semibold text-zinc-100">Save your agent secret</h2>
         <p className="mt-2 text-sm text-zinc-400">
           This key signs <span className="font-mono text-zinc-300">guarded_execute</span> transactions.
@@ -37,7 +37,7 @@ export function AgentSecretBackupModal({
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"
-            className="rounded-lg border border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-200 transition-all duration-200 hover:border-blue-700/70 hover:bg-blue-950/30 hover:text-blue-100"
+            className="button button-secondary px-3 py-1.5 text-sm font-medium"
             onClick={() => navigator.clipboard.writeText(secret)}
           >
             Copy secret
@@ -56,7 +56,7 @@ export function AgentSecretBackupModal({
         <div className="mt-6 flex justify-end gap-2">
           <button
             type="button"
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-600 px-4 py-2.5 text-sm font-semibold text-zinc-200 transition-all duration-200 hover:border-blue-700/70 hover:bg-blue-950/30 hover:text-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="button button-secondary px-4 py-2.5 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
             disabled={busy}
             onClick={onCancel}
           >
@@ -64,7 +64,7 @@ export function AgentSecretBackupModal({
           </button>
           <button
             type="button"
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition-all duration-200 hover:from-blue-500 hover:to-blue-400 hover:shadow-xl hover:shadow-blue-500/40 disabled:cursor-not-allowed disabled:opacity-50"
+            className="button button-primary px-4 py-2.5 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!saved || busy}
             onClick={onConfirm}
           >

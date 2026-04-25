@@ -52,7 +52,7 @@ export function AgentDetailView({ pubkey }: { pubkey: string }) {
 
       <KillSwitchButton policy={policy} />
 
-      <div className="mt-4 rounded-2xl border border-blue-950/40 bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 p-6 shadow-lg shadow-blue-950/20 backdrop-blur-sm transition-all duration-300">
+      <div className="panel-glow mt-4 p-6">
         <div className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-sm font-bold uppercase tracking-widest text-transparent">Daily spend</div>
         <SpendGauge
           spentLamports={String(policy.dailySpentLamports ?? "0")}
@@ -60,7 +60,7 @@ export function AgentDetailView({ pubkey }: { pubkey: string }) {
         />
       </div>
 
-      <div className="mt-4 rounded-2xl border border-blue-950/40 bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 p-6 shadow-lg shadow-blue-950/20 backdrop-blur-sm transition-all duration-300">
+      <div className="panel-glow mt-4 p-6">
         <div className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-sm font-bold uppercase tracking-widest text-transparent">Recent transactions</div>
         {transactionsQuery.isLoading ? (
           <QueryLoading message="Loading transactions…" />
@@ -103,7 +103,7 @@ export function AgentDetailView({ pubkey }: { pubkey: string }) {
         )}
       </div>
 
-      <div className="mt-4">
+      <div className="panel-glow mt-4 p-5">
         <div className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-sm font-bold uppercase tracking-widest text-transparent">Related incidents</div>
         {incidentsQuery.isLoading ? (
           <QueryLoading message="Loading incidents…" />
