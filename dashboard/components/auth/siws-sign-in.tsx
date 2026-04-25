@@ -9,6 +9,7 @@ import {
   requestSiwsNonce,
   verifySiwsSignature,
 } from "@/lib/api/client";
+import { useSiwsAuthStore } from "@/lib/stores/siws-auth";
 
 function uint8ArrayToBase64(bytes: Uint8Array): string {
   let binary = "";
@@ -21,6 +22,7 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
 export function SiwsSignIn() {
   const router = useRouter();
   const { publicKey, signMessage, connecting, connected } = useWallet();
+  const markSignedIn = useSiwsAuthStore((s) => s.markSignedIn);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +41,7 @@ export function SiwsSignIn() {
       const signatureBytes = await signMessage(encoded);
       const signature = uint8ArrayToBase64(signatureBytes);
       await verifySiwsSignature({ pubkey, message, signature });
+      markSignedIn(pubkey, new Date().toISOString());
       router.replace("/agents");
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -49,7 +52,7 @@ export function SiwsSignIn() {
     } finally {
       setBusy(false);
     }
-  }, [publicKey, router, signMessage]);
+  }, [markSignedIn, publicKey, router, signMessage]);
 
   return (
     <div className="flex flex-col gap-4">

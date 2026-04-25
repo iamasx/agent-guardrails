@@ -10,6 +10,7 @@ import type { Adapter } from "@solana/wallet-adapter-base";
 import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { BackpackWalletAdapter } from "@solana/wallet-adapter-backpack";
 import { ApiClientError, isUnauthorizedError } from "@/lib/api/client";
+import { clearSiwsAndRedirectToSignin } from "@/lib/auth/siws-session";
 import { useSSE } from "@/lib/sse/useSSE";
 
 const RPC_ENDPOINT = process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
@@ -45,7 +46,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
             if (typeof window === "undefined") return;
             if (window.location.pathname === "/signin") return;
             if (isUnauthorizedError(error)) {
-              window.location.assign("/signin");
+              clearSiwsAndRedirectToSignin();
             }
           },
         }),

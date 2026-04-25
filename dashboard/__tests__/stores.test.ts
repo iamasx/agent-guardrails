@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { useActivityFiltersStore } from "@/lib/stores/activity-filters";
 import { useLayoutStore } from "@/lib/stores/layout";
+import { useSiwsAuthStore } from "@/lib/stores/siws-auth";
 
 describe("layout store", () => {
   beforeEach(() => {
@@ -29,5 +30,24 @@ describe("activity filters store", () => {
 
     expect(useActivityFiltersStore.getState().selectedPolicyPubkey).toBeNull();
     expect(useActivityFiltersStore.getState().verdictFilter).toBe("all");
+  });
+});
+
+describe("siws auth store", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useSiwsAuthStore.getState().clearSignedIn();
+  });
+
+  it("marks and clears signed-in metadata", () => {
+    useSiwsAuthStore.getState().markSignedIn("Wallet11111111111111111111111111111111", "2026-01-01T00:00:00.000Z");
+
+    expect(useSiwsAuthStore.getState().siwsWallet).toBe("Wallet11111111111111111111111111111111");
+    expect(useSiwsAuthStore.getState().siwsSignedInAt).toBe("2026-01-01T00:00:00.000Z");
+
+    useSiwsAuthStore.getState().clearSignedIn();
+
+    expect(useSiwsAuthStore.getState().siwsWallet).toBeNull();
+    expect(useSiwsAuthStore.getState().siwsSignedInAt).toBeNull();
   });
 });
