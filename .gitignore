@@ -42,3 +42,6 @@ program/target/
 /index.html
 /dashboard/PHASES.md
 
+# Demo keypairs (contain secret keys — never commit)
+.demo-keys.json
+
