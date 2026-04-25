@@ -45,6 +45,8 @@ export const env = {
   ANTHROPIC_API_KEY,
   OPENAI_API_KEY,
   GEMINI_API_KEY,
+  LLM_JUDGE_MODEL: optionalKey("LLM_JUDGE_MODEL"),
+  LLM_REPORT_MODEL: optionalKey("LLM_REPORT_MODEL"),
   DATABASE_URL: required("DATABASE_URL"),
   DIRECT_URL: required("DIRECT_URL"),
   JWT_SECRET: required("JWT_SECRET"),
