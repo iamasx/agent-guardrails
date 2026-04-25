@@ -103,13 +103,3 @@ export function WalletControls() {
     </div>
   );
 }
-     setConnectToastError(getErrorMessage(error));
-              });
-          }}
-        >
-          Connect wallet
-        </button>
-      )}
-    </div>
-  );
-}
