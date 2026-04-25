@@ -12,6 +12,10 @@ function optional(name: string, fallback: string): string {
   return process.env[name] || fallback;
 }
 
+function optionalKey(name: string): string | undefined {
+  return process.env[name] || undefined;
+}
+
 function port(name: string, fallback: string): number {
   const raw = optional(name, fallback);
   const parsed = Number(raw);
@@ -21,13 +25,26 @@ function port(name: string, fallback: string): number {
   return parsed;
 }
 
+// LLM API keys — at least one must be set. Priority: Anthropic > OpenAI > Gemini.
+const ANTHROPIC_API_KEY = optionalKey("ANTHROPIC_API_KEY");
+const OPENAI_API_KEY = optionalKey("OPENAI_API_KEY");
+const GEMINI_API_KEY = optionalKey("GEMINI_API_KEY");
+
+if (!ANTHROPIC_API_KEY && !OPENAI_API_KEY && !GEMINI_API_KEY) {
+  throw new Error(
+    "At least one LLM API key required: ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY",
+  );
+}
+
 export const env = {
   PORT: port("PORT", "8080"),
   SOLANA_RPC_URL: required("SOLANA_RPC_URL"),
   GUARDRAILS_PROGRAM_ID: required("GUARDRAILS_PROGRAM_ID"),
   MONITOR_KEYPAIR: required("MONITOR_KEYPAIR"),
   HELIUS_WEBHOOK_SECRET: required("HELIUS_WEBHOOK_SECRET"),
-  ANTHROPIC_API_KEY: required("ANTHROPIC_API_KEY"),
+  ANTHROPIC_API_KEY,
+  OPENAI_API_KEY,
+  GEMINI_API_KEY,
   DATABASE_URL: required("DATABASE_URL"),
   DIRECT_URL: required("DIRECT_URL"),
   JWT_SECRET: required("JWT_SECRET"),

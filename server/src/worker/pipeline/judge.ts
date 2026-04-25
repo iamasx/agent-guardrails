@@ -1,10 +1,9 @@
-// Judge stage — calls Claude Haiku to evaluate a flagged transaction.
+// Judge stage — calls the active LLM provider to evaluate a flagged transaction.
 // Handles timeout (3s), retry on 429, and rule-based fallback.
 
-import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "../../db/client.js";
 import { sseEmitter } from "../../sse/emitter.js";
-import { env } from "../../config/env.js";
+import { llmCall, llmProviderName } from "../../config/llm.js";
 import {
   JUDGE_SYSTEM,
   buildJudgeUserMessage,
@@ -15,8 +14,6 @@ import type { GuardedTxn } from "@prisma/client";
 
 const JUDGE_TIMEOUT_MS = 3_000;
 const RETRY_DELAY_MS = 1_000;
-
-const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
 /**
  * Judge a transaction that passed prefilter with signals.
@@ -33,7 +30,7 @@ export async function judgeTransaction(
   let latencyMs: number;
   let promptTokens: number | undefined;
   let completionTokens: number | undefined;
-  let model = "claude-haiku-4-5";
+  let model: string = llmProviderName;
 
   try {
     const result = await callWithTimeout(userMessage);
@@ -41,6 +38,7 @@ export async function judgeTransaction(
     latencyMs = result.latencyMs;
     promptTokens = result.promptTokens;
     completionTokens = result.completionTokens;
+    model = result.model;
   } catch (err) {
     // Rate limit — retry once after delay
     if (isRateLimitError(err)) {
@@ -51,17 +49,14 @@ export async function judgeTransaction(
         latencyMs = result.latencyMs;
         promptTokens = result.promptTokens;
         completionTokens = result.completionTokens;
+        model = result.model;
       } catch {
-        // Retry also failed — use fallback
-        const fb = fallbackVerdict(prefilterSignals);
-        verdict = fb;
+        verdict = fallbackVerdict(prefilterSignals);
         latencyMs = JUDGE_TIMEOUT_MS;
         model = "fallback";
       }
     } else {
-      // Timeout, server error, or malformed response — fallback
-      const fb = fallbackVerdict(prefilterSignals);
-      verdict = fb;
+      verdict = fallbackVerdict(prefilterSignals);
       latencyMs = JUDGE_TIMEOUT_MS;
       model = "fallback";
     }
@@ -97,11 +92,12 @@ export async function judgeTransaction(
 }
 
 // ---------------------------------------------------------------------------
-// Claude API call with timeout
+// LLM call with timeout
 // ---------------------------------------------------------------------------
 
 interface CallResult {
   verdict: Verdict;
+  model: string;
   latencyMs: number;
   promptTokens: number;
   completionTokens: number;
@@ -110,30 +106,24 @@ interface CallResult {
 async function callWithTimeout(userMessage: string): Promise<CallResult> {
   const start = Date.now();
 
-  const response = (await Promise.race([
-    anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 256,
+  const response = await Promise.race([
+    llmCall({
       system: JUDGE_SYSTEM,
-      messages: [{ role: "user", content: userMessage }],
+      userMessage,
+      maxTokens: 256,
+      tier: "fast",
     }),
     timeoutPromise(JUDGE_TIMEOUT_MS),
-  ])) as Anthropic.Message;
+  ]);
 
   const latencyMs = Date.now() - start;
 
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("No text response from Claude");
-  }
-
   // Strip code fences and parse JSON
-  const cleaned = textBlock.text.replace(/```json\s*|```\s*/g, "").trim();
+  const cleaned = response.text.replace(/```json\s*|```\s*/g, "").trim();
   let parsed: Verdict;
   try {
     parsed = JSON.parse(cleaned) as Verdict;
   } catch {
-    // Malformed JSON — treat as flag with low confidence
     parsed = {
       verdict: "flag",
       confidence: 40,
@@ -142,14 +132,14 @@ async function callWithTimeout(userMessage: string): Promise<CallResult> {
     };
   }
 
-  // Clamp confidence to valid range
   parsed.confidence = Math.max(0, Math.min(100, parsed.confidence));
 
   return {
     verdict: parsed,
+    model: response.model,
     latencyMs,
-    promptTokens: response.usage.input_tokens,
-    completionTokens: response.usage.output_tokens,
+    promptTokens: response.promptTokens,
+    completionTokens: response.completionTokens,
   };
 }
 
@@ -158,21 +148,19 @@ async function callWithTimeout(userMessage: string): Promise<CallResult> {
 // ---------------------------------------------------------------------------
 
 function fallbackVerdict(signals: string[]): Verdict {
-  // If burst detected, pause as a precaution
   if (signals.includes("burst_detected")) {
     return {
       verdict: "pause",
       confidence: 50,
-      reasoning: "Claude timeout — burst detected, pausing as precaution",
+      reasoning: "LLM timeout — burst detected, pausing as precaution",
       signals: ["fallback", "burst_detected"],
     };
   }
 
-  // Otherwise flag for manual review
   return {
     verdict: "flag",
     confidence: 50,
-    reasoning: "Claude timeout — flagging for manual review",
+    reasoning: "LLM timeout — flagging for manual review",
     signals: ["fallback"],
   };
 }
@@ -189,8 +177,8 @@ function timeoutPromise(ms: number): Promise<never> {
 
 function isRateLimitError(err: unknown): boolean {
   return (
-    err instanceof Anthropic.RateLimitError ||
-    (err instanceof Error && "status" in err && (err as { status: number }).status === 429)
+    err instanceof Error &&
+    ("status" in err && (err as { status: number }).status === 429)
   );
 }
 
