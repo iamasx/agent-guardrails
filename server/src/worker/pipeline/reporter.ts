@@ -1,19 +1,16 @@
-// Reporter stage — generates an Opus incident report asynchronously.
+// Reporter stage — generates an incident report asynchronously using the active LLM.
 // Fire-and-forget: called without await from executor. Never blocks the pipeline.
 
-import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "../../db/client.js";
 import { sseEmitter } from "../../sse/emitter.js";
-import { env } from "../../config/env.js";
+import { llmCall } from "../../config/llm.js";
 import {
   REPORT_SYSTEM,
   buildReportUserMessage,
 } from "../prompts/incident-report.js";
 
-const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-
 /**
- * Generate a full incident report using Claude Opus.
+ * Generate a full incident report using the active LLM provider (report tier).
  * Updates the Incident row with the markdown report and emits report_ready SSE.
  * This function is called fire-and-forget — errors are logged but never propagated.
  */
@@ -45,15 +42,14 @@ export async function generateReport(
 
   const userMessage = buildReportUserMessage(incident, history);
 
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250514",
-    max_tokens: 2048,
+  const response = await llmCall({
     system: REPORT_SYSTEM,
-    messages: [{ role: "user", content: userMessage }],
+    userMessage,
+    maxTokens: 2048,
+    tier: "report",
   });
 
-  const textBlock = response.content.find((b) => b.type === "text");
-  const report = textBlock?.type === "text" ? textBlock.text : "";
+  const report = response.text;
 
   // Update incident with the full report
   await prisma.incident.update({
@@ -69,6 +65,6 @@ export async function generateReport(
   });
 
   console.log(
-    `[reporter] generated report for incident ${incidentId} (${report.length} chars)`,
+    `[reporter] generated report for incident ${incidentId} (${report.length} chars, model=${response.model})`,
   );
 }
