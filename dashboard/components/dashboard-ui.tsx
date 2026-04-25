@@ -19,6 +19,32 @@ import type { IncidentSummary, PolicySummary, TransactionSummary } from "@/lib/t
 import { useLayoutStore } from "@/lib/stores/layout";
 import { WalletControls } from "./wallet-controls";
 
+/* ── SVG icon paths (matching design reference) ── */
+const navIconPaths = {
+  agents: "M16 11a4 4 0 10-8 0 4 4 0 008 0zM3 21v-1a5 5 0 015-5h8a5 5 0 015 5v1",
+  activity: "M3 12h4l3-8 4 16 3-8h4",
+  incidents: "M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z",
+  plus: "M12 5v14M5 12h14",
+} as const;
+
+function NavIcon({ d }: { d: string }) {
+  return (
+    <svg
+      width={14}
+      height={14}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0"
+    >
+      <path d={d} />
+    </svg>
+  );
+}
+
 export function AppShell({
   title,
   subtitle,
@@ -32,16 +58,12 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const { connected, publicKey } = useWallet();
-  const { sidebarOpen, sidebarCollapsed, toggleSidebar, toggleSidebarCollapsed, setSidebarOpen } = useLayoutStore();
+  const { sidebarOpen, toggleSidebar, setSidebarOpen } = useLayoutStore();
   const walletAddress = publicKey ? shortAddress(publicKey.toBase58(), 4, 4) : "Not connected";
   const monitorLinks = [
-    { href: "/agents", label: "Agents", icon: "A", badge: "5" },
-    { href: "/activity", label: "Activity", icon: "V", badge: "21" },
-    { href: "/incidents", label: "Incidents", icon: "I", badge: "2" },
-  ];
-  const setupLinks = [
-    { href: "/agents/new", label: "New agent", icon: "+", badge: "•" },
-    { href: "/signin", label: "Sign in", icon: "S" },
+    { href: "/agents", label: "Agents", icon: navIconPaths.agents, count: "5" },
+    { href: "/activity", label: "Activity", icon: navIconPaths.activity, count: "21" },
+    { href: "/incidents", label: "Incidents", icon: navIconPaths.incidents, count: "2" },
   ];
   const currentPath = pathname ?? "";
   const isLinkActive = (href: string, nested = true) =>
@@ -49,6 +71,7 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen w-full overflow-x-hidden bg-[#07080c] text-[#e6e9f2]">
+      {/* Mobile backdrop */}
       {sidebarOpen ? (
         <button
           type="button"
@@ -57,104 +80,102 @@ export function AppShell({
           onClick={() => setSidebarOpen(false)}
         />
       ) : null}
-      <aside className={`fixed left-0 top-0 z-40 flex h-full w-[min(17rem,90vw)] flex-col gap-1 border-r border-[#1e2433] bg-[#0b0d14] px-3 py-5 shadow-2xl transition-transform duration-300 ease-out md:static md:z-0 md:h-screen md:w-60 md:shrink-0 md:translate-x-0 md:shadow-none ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "md:w-[4.5rem]" : ""}`}>
-        <div className={`mb-4 flex items-center gap-2 px-2 ${sidebarCollapsed ? "md:justify-center" : ""}`}>
-          <div className="relative h-6 w-6 rounded-md bg-gradient-to-br from-blue-500 to-violet-500 shadow-[0_0_14px_rgba(59,130,246,0.35)] after:absolute after:inset-[5px] after:rounded-[3px] after:border after:border-white/90 after:content-['']" />
-          <div className={`${sidebarCollapsed ? "md:hidden" : ""}`}>
-            <div className="text-sm font-semibold">Guardrails</div>
-            <div className="text-[10px] uppercase tracking-[0.16em] text-[#5b6479]">Solana Devnet</div>
-          </div>
-        </div>
 
-        <button
-          type="button"
-          className="mb-2 hidden items-center justify-center rounded-md border border-[#2a3142] bg-[#10131c] px-2 py-1.5 text-xs text-[#8a93a8] hover:border-[#384056] md:inline-flex"
-          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-pressed={sidebarCollapsed}
-          onClick={toggleSidebarCollapsed}
+      {/* ── Sidebar ── */}
+      <aside
+        className={`fixed left-0 top-0 z-40 flex h-full w-60 flex-col gap-1 border-r border-[#1e2433] bg-[#0b0d14] px-3.5 py-[22px] shadow-2xl transition-transform duration-300 ease-out md:sticky md:top-0 md:z-0 md:h-screen md:shrink-0 md:translate-x-0 md:shadow-none ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+      >
+        {/* Brand */}
+        <Link
+          href="/"
+          className="flex items-center gap-2.5 px-2.5 pb-[22px] pt-1"
+          onClick={() => setSidebarOpen(false)}
         >
-          {sidebarCollapsed ? ">>" : "<<"}
-        </button>
-        <nav className="mb-0 flex flex-col gap-1">
-          <div className={`mb-1 mt-2 px-2 text-[10px] uppercase tracking-[0.14em] text-[#5b6479] ${sidebarCollapsed ? "md:hidden" : ""}`}>Monitor</div>
-          {monitorLinks.map((link) => (
+          <div className="relative h-6 w-6 rounded-md bg-gradient-to-br from-blue-500 to-violet-500 shadow-[0_0_14px_rgba(59,130,246,0.35)] after:absolute after:inset-[5px] after:rounded-[3px] after:border-[1.5px] after:border-white/90 after:content-['']" />
+          <div>
+            <div className="text-sm font-semibold tracking-[-0.01em]">Guardrails</div>
+            <div className="text-[10.5px] uppercase tracking-[0.1em] text-[#5b6479]">
+              Solana &middot; devnet
+            </div>
+          </div>
+        </Link>
+
+        {/* Monitor group */}
+        <div className="mt-3 px-2.5 pb-1.5 text-[10.5px] uppercase tracking-[0.1em] text-[#5b6479]">
+          Monitor
+        </div>
+        {monitorLinks.map((link) => {
+          const active = isLinkActive(link.href, true);
+          return (
             <Link
               key={link.href}
               href={link.href}
-              className={`group rounded-md px-2.5 py-2 text-[13px] transition-all ${
-                isLinkActive(link.href, true)
-                  ? "bg-blue-500/10 text-[#e6e9f2] shadow-[inset_0_0_0_1px_rgba(59,130,246,0.3)]"
+              className={`flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] transition-[background,color] duration-150 ${
+                active
+                  ? "bg-[rgba(59,130,246,0.12)] text-[#e6e9f2] shadow-[inset_0_0_0_1px_rgba(59,130,246,0.3)]"
                   : "text-[#8a93a8] hover:bg-[#10131c] hover:text-[#e6e9f2]"
               }`}
-              aria-current={isLinkActive(link.href, true) ? "page" : undefined}
+              aria-current={active ? "page" : undefined}
               onClick={() => setSidebarOpen(false)}
-              title={link.label}
             >
-              <span className="flex items-center gap-3">
-                <span className={`h-1 w-1 rounded-full ${isLinkActive(link.href, true) ? "bg-blue-500" : "bg-transparent"}`} />
-                <span className={`${sidebarCollapsed ? "md:hidden" : ""}`}>{link.label}</span>
-                {link.badge ? (
-                  <span
-                    className={`ml-auto inline-flex min-w-[1.35rem] items-center justify-center rounded-md px-1.5 text-[11px] ${
-                      isLinkActive(link.href, true)
-                        ? "text-[#8a93a8]"
-                        : "text-[#5b6479]"
-                    } ${sidebarCollapsed ? "md:hidden" : ""}`}
-                  >
-                    {link.badge}
-                  </span>
-                ) : null}
-              </span>
+              <NavIcon d={link.icon} />
+              <span>{link.label}</span>
+              <span className="ml-auto text-[11px] text-[#5b6479]">{link.count}</span>
+              <span
+                className={`h-1 w-1 rounded-full bg-blue-500 ${active ? "opacity-100" : "opacity-0"}`}
+              />
             </Link>
-          ))}
-          <div className={`mb-1 mt-4 px-2 text-[10px] uppercase tracking-[0.14em] text-[#5b6479] ${sidebarCollapsed ? "md:hidden" : ""}`}>Setup</div>
-          {setupLinks.map((link) => (
+          );
+        })}
+
+        {/* Setup group */}
+        <div className="mt-3 px-2.5 pb-1.5 text-[10.5px] uppercase tracking-[0.1em] text-[#5b6479]">
+          Setup
+        </div>
+        {(() => {
+          const active = isLinkActive("/agents/new", false);
+          return (
             <Link
-              key={link.href}
-              href={link.href}
-              className={`group rounded-md px-2.5 py-2 text-[13px] transition-all ${
-                isLinkActive(link.href, false)
-                  ? "bg-blue-500/10 text-[#e6e9f2] shadow-[inset_0_0_0_1px_rgba(59,130,246,0.3)]"
+              href="/agents/new"
+              className={`flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] transition-[background,color] duration-150 ${
+                active
+                  ? "bg-[rgba(59,130,246,0.12)] text-[#e6e9f2] shadow-[inset_0_0_0_1px_rgba(59,130,246,0.3)]"
                   : "text-[#8a93a8] hover:bg-[#10131c] hover:text-[#e6e9f2]"
               }`}
-              aria-current={isLinkActive(link.href, false) ? "page" : undefined}
+              aria-current={active ? "page" : undefined}
               onClick={() => setSidebarOpen(false)}
-              title={link.label}
             >
-              <span className="flex items-center gap-3">
-                <span className={`h-1 w-1 rounded-full ${isLinkActive(link.href, false) ? "bg-blue-500" : "bg-transparent"}`} />
-                <span className={`${sidebarCollapsed ? "md:hidden" : ""}`}>{link.label}</span>
-                {link.badge ? (
-                  <span
-                    className={`ml-auto inline-flex min-w-[1.35rem] items-center justify-center rounded-md px-1.5 text-[11px] ${
-                      isLinkActive(link.href, false)
-                        ? "text-[#8a93a8]"
-                        : "text-[#5b6479]"
-                    } ${sidebarCollapsed ? "md:hidden" : ""}`}
-                  >
-                    {link.badge}
-                  </span>
-                ) : null}
-              </span>
+              <NavIcon d={navIconPaths.plus} />
+              <span>New agent</span>
+              <span
+                className={`ml-auto h-1 w-1 rounded-full bg-blue-500 ${active ? "opacity-100" : "opacity-0"}`}
+              />
             </Link>
-          ))}
-        </nav>
-        <div className={`mt-auto border-t border-[#1e2433] px-2 pt-3 ${sidebarCollapsed ? "md:px-1" : ""}`}>
-          <div className={`flex items-center gap-2 rounded-md border border-[#1e2433] bg-[#10131c] px-2.5 py-2 ${sidebarCollapsed ? "md:justify-center" : ""}`}>
-            <span className="h-5 w-5 rounded-full bg-gradient-to-br from-blue-500 to-emerald-500" />
-            <div className={`${sidebarCollapsed ? "md:hidden" : ""}`}>
-              <div className="text-[11px] text-[#5b6479]">{connected ? "Connected wallet" : "Wallet status"}</div>
-              <div className="text-xs text-[#e6e9f2]">{walletAddress}</div>
+          );
+        })()}
+
+        {/* Wallet footer */}
+        <div className="mt-auto border-t border-[#1e2433] px-1.5 pt-3 pb-0.5">
+          <div className="flex w-full items-center gap-2 rounded-lg border border-[#1e2433] bg-[#10131c] px-2.5 py-2">
+            <span className="h-5 w-5 shrink-0 rounded-full bg-gradient-to-br from-blue-500 to-emerald-500" />
+            <div className="min-w-0">
+              <div className="text-[11px] text-[#5b6479]">
+                {connected ? "Connected wallet" : "Wallet status"}
+              </div>
+              <div className="font-mono text-xs text-[#e6e9f2]">{walletAddress}</div>
             </div>
           </div>
         </div>
       </aside>
+
+      {/* ── Main content ── */}
       <main className="min-w-0 flex-1">
-        <header className="sticky top-0 z-10 flex h-14 items-center border-b border-[#1e2433] bg-[#07080c]/90 px-5 backdrop-blur md:px-7">
-          <div className="text-sm text-[#8a93a8]">
-            Dashboard <span className="px-1 text-[#5b6479]">/</span> <span className="text-[#e6e9f2]">{title}</span>
+        <header className="sticky top-0 z-10 flex h-14 items-center border-b border-[#1e2433] bg-[#07080c]/90 px-5 backdrop-blur-md md:px-7">
+          <div className="text-[13px] text-[#8a93a8]">
+            Dashboard <span className="px-2 text-[#5b6479]">/</span>{" "}
+            <span className="text-[#e6e9f2]">{title}</span>
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2.5">
             <button
               className="rounded-md border border-[#2a3142] bg-[#10131c] px-3 py-1.5 text-xs text-[#8a93a8] md:hidden"
               type="button"
@@ -168,7 +189,7 @@ export function AppShell({
         <div className="px-5 py-7 md:px-8 md:py-8">
           <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <div className="min-w-0">
-              <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+              <h1 className="text-[22px] font-semibold tracking-[-0.02em]">{title}</h1>
               {subtitle ? <p className="mt-1 text-[13px] text-[#8a93a8]">{subtitle}</p> : null}
             </div>
             <div className="flex items-center gap-2">{actions}</div>
