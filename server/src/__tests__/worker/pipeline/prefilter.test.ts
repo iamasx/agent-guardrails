@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { makePolicy, makeGuardedTxn, makeAnomalyVerdict } from "../../__tests__/fixtures/prisma-rows.js";
+import { makePolicy, makeGuardedTxn, makeAnomalyVerdict } from "../../fixtures/prisma-rows.js";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -19,7 +19,7 @@ vi.mock("../../sse/emitter.js", () => ({ sseEmitter: mockEmitter }));
 // Import under test
 // ---------------------------------------------------------------------------
 
-const { prefilter } = await import("./prefilter.js");
+const { prefilter } = await import("../../../worker/pipeline/prefilter.js");
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -3,7 +3,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import request from "supertest";
 import nacl from "tweetnacl";
-import { makeAuthSession } from "../../__tests__/fixtures/prisma-rows.js";
+import { makeAuthSession } from "../../fixtures/prisma-rows.js";
 
 vi.mock("../../config/env.js", () => ({
   env: { JWT_SECRET: "test-jwt-secret-at-least-32-chars-long!!" },
@@ -17,7 +17,7 @@ const mockPrisma = {
 };
 vi.mock("../../db/client.js", () => ({ prisma: mockPrisma }));
 
-const { authRouter } = await import("./auth.js");
+const { authRouter } = await import("../../../api/routes/auth.js");
 
 function buildApp() {
   const app = express();

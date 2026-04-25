@@ -3,7 +3,7 @@ import {
   makeIncident,
   makeGuardedTxn,
   makeAnomalyVerdict,
-} from "../../__tests__/fixtures/prisma-rows.js";
+} from "../../fixtures/prisma-rows.js";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -44,7 +44,7 @@ vi.mock("../prompts/incident-report.js", () => ({
 // Import under test
 // ---------------------------------------------------------------------------
 
-const { generateReport } = await import("./reporter.js");
+const { generateReport } = await import("../../../worker/pipeline/reporter.js");
 
 // ---------------------------------------------------------------------------
 // Helpers

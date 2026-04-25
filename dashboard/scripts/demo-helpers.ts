@@ -1,10 +1,13 @@
 // Shared helpers for demo scripts — keypair management, connection, client setup.
 
+import * as path from "path";
+import dotenv from "dotenv";
+dotenv.config({ path: path.join(__dirname, "..", ".env.local") });
+
 import { Connection, Keypair, PublicKey, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { AnchorProvider, BN, Wallet } from "@coral-xyz/anchor";
 import { GuardrailsClient } from "../lib/sdk/client";
 import * as fs from "fs";
-import * as path from "path";
 
 // ---------------------------------------------------------------------------
 // Constants

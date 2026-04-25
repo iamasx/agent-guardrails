@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { JudgeContext } from "../../types/anomaly.js";
+import type { JudgeContext } from "../../../types/anomaly.js";
 
 // ---------------------------------------------------------------------------
 // Mock Prisma before importing the module under test.
@@ -21,9 +21,9 @@ import {
   JUDGE_SYSTEM,
   buildJudgeUserMessage,
   buildJudgeContext,
-} from "./judge.js";
+} from "../../../worker/prompts/judge.js";
 
-import { makePolicy, makeGuardedTxn } from "../../__tests__/fixtures/prisma-rows.js";
+import { makePolicy, makeGuardedTxn } from "../../fixtures/prisma-rows.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

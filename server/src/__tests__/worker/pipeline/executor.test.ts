@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { makeGuardedTxn, makeIncident } from "../../__tests__/fixtures/prisma-rows.js";
+import { makeGuardedTxn, makeIncident } from "../../fixtures/prisma-rows.js";
 
 // ---------------------------------------------------------------------------
 // Mocks — use vi.hoisted so they exist when hoisted vi.mock factories run
@@ -64,7 +64,7 @@ vi.mock("./reporter.js", () => ({
 // Import under test
 // ---------------------------------------------------------------------------
 
-const { executePause } = await import("./executor.js");
+const { executePause } = await import("../../../worker/pipeline/executor.js");
 
 // ---------------------------------------------------------------------------
 // Helpers

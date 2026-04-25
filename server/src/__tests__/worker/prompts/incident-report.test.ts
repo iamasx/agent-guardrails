@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { REPORT_SYSTEM, buildReportUserMessage } from "./incident-report.js";
+import { REPORT_SYSTEM, buildReportUserMessage } from "../../../worker/prompts/incident-report.js";
 
 // ---------------------------------------------------------------------------
 // Helpers — build inline objects matching the Prisma shapes with relations

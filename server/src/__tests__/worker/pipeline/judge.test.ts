@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { makeGuardedTxn, makeAnomalyVerdict } from "../../__tests__/fixtures/prisma-rows.js";
-import { makeAnthropicMessage } from "../../__tests__/fixtures/judge-response.js";
+import { makeGuardedTxn, makeAnomalyVerdict } from "../../fixtures/prisma-rows.js";
+import { makeAnthropicMessage } from "../../fixtures/judge-response.js";
 
 // ---------------------------------------------------------------------------
 // Mocks — use vi.hoisted so references survive mockReset
@@ -62,7 +62,7 @@ vi.mock("../prompts/judge.js", () => ({
 // Import under test
 // ---------------------------------------------------------------------------
 
-const { judgeTransaction } = await import("./judge.js");
+const { judgeTransaction } = await import("../../../worker/pipeline/judge.js");
 
 // ---------------------------------------------------------------------------
 // Helpers

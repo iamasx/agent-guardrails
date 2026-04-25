@@ -6,7 +6,7 @@ import {
   makePolicy,
   makeGuardedTxn,
   makeAnomalyVerdict,
-} from "../../__tests__/fixtures/prisma-rows.js";
+} from "../../fixtures/prisma-rows.js";
 
 const mockPrisma = {
   policy: { findUnique: vi.fn(), findMany: vi.fn() },
@@ -16,7 +16,7 @@ const mockPrisma = {
 };
 vi.mock("../../db/client.js", () => ({ prisma: mockPrisma }));
 
-const { transactionsRouter } = await import("./transactions.js");
+const { transactionsRouter } = await import("../../../api/routes/transactions.js");
 
 const WALLET = "OwnerPubkey11111111111111111111111";
 

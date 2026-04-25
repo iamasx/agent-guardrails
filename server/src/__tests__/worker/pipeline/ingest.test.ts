@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { makeHeliusTxn } from "../../__tests__/fixtures/helius-txn.js";
-import { makePolicy, makeGuardedTxn } from "../../__tests__/fixtures/prisma-rows.js";
+import { makeHeliusTxn } from "../../fixtures/helius-txn.js";
+import { makePolicy, makeGuardedTxn } from "../../fixtures/prisma-rows.js";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -23,7 +23,7 @@ vi.mock("../../config/env.js", () => ({
 // Import under test (after mocks are registered)
 // ---------------------------------------------------------------------------
 
-const { ingest } = await import("./ingest.js");
+const { ingest } = await import("../../../worker/pipeline/ingest.js");
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { sseEmitter } from "./emitter.js";
-import type { SSENewTransaction, SSEVerdict, SSEReportReady } from "../types/events.js";
+import { sseEmitter } from "../../sse/emitter.js";
+import type { SSENewTransaction, SSEVerdict, SSEReportReady } from "../../types/events.js";
 
 // Minimal fixture payloads matching the SSE types.
 

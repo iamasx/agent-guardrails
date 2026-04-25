@@ -15,7 +15,7 @@ const mockPrisma = {
 };
 vi.mock("../../db/client.js", () => ({ prisma: mockPrisma }));
 
-const { eventsRouter } = await import("./events.js");
+const { eventsRouter } = await import("../../../api/routes/events.js");
 
 const WALLET = "OwnerPubkey11111111111111111111111";
 const OWNED_POLICY = "OwnedPolicy11111111111111111111111";

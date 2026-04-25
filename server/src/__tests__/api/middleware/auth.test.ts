@@ -11,7 +11,7 @@ vi.mock("../../config/env.js", () => ({
 const JWT_SECRET = "test-jwt-secret-at-least-32-chars-long!!";
 
 // Import authMiddleware after mocking env
-const { authMiddleware } = await import("./auth.js");
+const { authMiddleware } = await import("../../../api/middleware/auth.js");
 
 function buildApp() {
   const app = express();

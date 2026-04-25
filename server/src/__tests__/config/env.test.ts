@@ -42,7 +42,7 @@ describe("config/env", () => {
       delete partial.ANTHROPIC_API_KEY;
       process.env = { ...partial };
 
-      await expect(import("./env.js")).rejects.toThrow(
+      await expect(import("../../config/env.js")).rejects.toThrow(
         "Missing required env var: ANTHROPIC_API_KEY",
       );
     });
@@ -55,7 +55,7 @@ describe("config/env", () => {
       env.JWT_SECRET = "";
       process.env = { ...env };
 
-      await expect(import("./env.js")).rejects.toThrow(
+      await expect(import("../../config/env.js")).rejects.toThrow(
         "Missing required env var: JWT_SECRET",
       );
     });
@@ -68,7 +68,7 @@ describe("config/env", () => {
       env.SOLANA_RPC_URL = "https://api.devnet.solana.com";
       process.env = { ...env };
 
-      const { env: config } = await import("./env.js");
+      const { env: config } = await import("../../config/env.js");
       expect(config.SOLANA_RPC_URL).toBe("https://api.devnet.solana.com");
     });
   });
@@ -84,7 +84,7 @@ describe("config/env", () => {
       process.env = { ...fullEnv() };
       // PORT intentionally not set
 
-      const { env: config } = await import("./env.js");
+      const { env: config } = await import("../../config/env.js");
       expect(config.PORT).toBe(8080);
     });
 
@@ -94,7 +94,7 @@ describe("config/env", () => {
 
       process.env = { ...fullEnv(), PORT: "3000" };
 
-      const { env: config } = await import("./env.js");
+      const { env: config } = await import("../../config/env.js");
       expect(config.PORT).toBe(3000);
     });
 
@@ -104,7 +104,7 @@ describe("config/env", () => {
 
       process.env = { ...fullEnv(), PORT: "abc" };
 
-      await expect(import("./env.js")).rejects.toThrow(
+      await expect(import("../../config/env.js")).rejects.toThrow(
         /Invalid env var PORT.*abc/,
       );
     });
@@ -115,7 +115,7 @@ describe("config/env", () => {
 
       process.env = { ...fullEnv(), PORT: "0" };
 
-      await expect(import("./env.js")).rejects.toThrow(
+      await expect(import("../../config/env.js")).rejects.toThrow(
         /Invalid env var PORT.*0/,
       );
     });
@@ -126,7 +126,7 @@ describe("config/env", () => {
 
       process.env = { ...fullEnv(), PORT: "-1" };
 
-      await expect(import("./env.js")).rejects.toThrow(
+      await expect(import("../../config/env.js")).rejects.toThrow(
         /Invalid env var PORT.*-1/,
       );
     });
@@ -137,7 +137,7 @@ describe("config/env", () => {
 
       process.env = { ...fullEnv(), PORT: "70000" };
 
-      await expect(import("./env.js")).rejects.toThrow(
+      await expect(import("../../config/env.js")).rejects.toThrow(
         /Invalid env var PORT.*70000/,
       );
     });
@@ -153,7 +153,7 @@ describe("config/env", () => {
 
       process.env = { ...fullEnv(), PORT: "4000", CORS_ORIGIN: "https://app.example.com" };
 
-      const { env: config } = await import("./env.js");
+      const { env: config } = await import("../../config/env.js");
 
       expect(config.PORT).toBe(4000);
       expect(config.CORS_ORIGIN).toBe("https://app.example.com");
@@ -171,7 +171,7 @@ describe("config/env", () => {
       process.env = { ...fullEnv() };
       // CORS_ORIGIN intentionally not set
 
-      const { env: config } = await import("./env.js");
+      const { env: config } = await import("../../config/env.js");
       expect(config.CORS_ORIGIN).toBe("http://localhost:3000");
     });
 
@@ -182,7 +182,7 @@ describe("config/env", () => {
       // Set almost nothing — first required var will fail
       process.env = { PORT: "8080" };
 
-      await expect(import("./env.js")).rejects.toThrow(
+      await expect(import("../../config/env.js")).rejects.toThrow(
         /Missing required env var/,
       );
     });

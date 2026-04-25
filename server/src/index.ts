@@ -1,6 +1,7 @@
 // Express application entry point.
 // Mounts worker router (webhook ingestion) and API router (REST + SSE + auth).
 
+import "dotenv/config";
 import express from "express";
 import cookieParser from "cookie-parser";
 import { env } from "./config/env.js";

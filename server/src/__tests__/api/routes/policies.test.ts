@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import express from "express";
 import cookieParser from "cookie-parser";
 import request from "supertest";
-import { makePolicy } from "../../__tests__/fixtures/prisma-rows.js";
+import { makePolicy } from "../../fixtures/prisma-rows.js";
 
 const mockPrisma = {
   policy: { findUnique: vi.fn(), findMany: vi.fn() },
@@ -12,7 +12,7 @@ const mockPrisma = {
 };
 vi.mock("../../db/client.js", () => ({ prisma: mockPrisma }));
 
-const { policiesRouter } = await import("./policies.js");
+const { policiesRouter } = await import("../../../api/routes/policies.js");
 
 const WALLET = "OwnerPubkey11111111111111111111111";
 

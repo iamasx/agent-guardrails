@@ -6,7 +6,7 @@ vi.mock("../../config/env.js", () => ({
   env: { CORS_ORIGIN: "https://dashboard.example.com" },
 }));
 
-const { corsMiddleware } = await import("./cors.js");
+const { corsMiddleware } = await import("../../../api/middleware/cors.js");
 
 function buildApp() {
   const app = express();
