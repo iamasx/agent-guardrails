@@ -30,7 +30,7 @@ export interface LLMCallOptions {
 const DEFAULTS: Record<ProviderName, { fast: string; report: string }> = {
   anthropic: { fast: "claude-haiku-4-5-20251001", report: "claude-sonnet-4-5-20250514" },
   openai:    { fast: "gpt-4o-mini",               report: "gpt-4o" },
-  gemini:    { fast: "gemini-2.0-flash",           report: "gemini-2.5-pro-preview-06-05" },
+  gemini:    { fast: "gemini-2.0-flash",           report: "gemini-2.5-pro" },
 };
 
 function resolveModel(providerName: ProviderName, tier: "fast" | "report"): string {
